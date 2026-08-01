@@ -9,6 +9,8 @@ Desktopowa aplikacja napisana w Pythonie, która pobiera dane gracza z oficjalne
 - poziom konta oraz rangi Solo/Duo i Flex,
 - liczba zwycięstw, porażek i aktualny win rate,
 - tabela 30 ostatnich meczów,
+- wybór pobierania 10, 20, 30 lub 50 ostatnich meczów,
+- filtrowanie historii po trybie, wyniku i nazwie bohatera,
 - ikony profilu, bohaterów i przedmiotów z oficjalnego Data Dragon,
 - bohater, K/D/A, tryb gry, czas trwania i data każdego meczu,
 - szczegóły meczu otwierane dwuklikiem,
@@ -103,6 +105,8 @@ Klucz deweloperski Riot zazwyczaj wygasa po 24 godzinach. Po wygaśnięciu wygen
 4. Kliknij **Wyszukaj**.
 5. Przełączaj się między zakładkami **Historia meczów**, **Analiza ranked** i **Statystyki**.
 6. Kliknij dwukrotnie wybrany mecz, aby otworzyć szczegółowe statystyki obu drużyn.
+
+Nad historią możesz połączyć kilka filtrów, na przykład pokazać wyłącznie wygrane mecze ranked wybranym bohaterem. Filtry działają lokalnie i nie wykonują dodatkowych zapytań do Riot API.
 
 Pobranie 30 szczegółowych meczów może potrwać kilka–kilkanaście sekund. Przy przekroczeniu limitu zapytań aplikacja wyświetli odpowiedni komunikat.
 

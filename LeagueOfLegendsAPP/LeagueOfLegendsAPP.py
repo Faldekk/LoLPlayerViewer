@@ -266,6 +266,7 @@ class LolApp(tk.Tk):
         self.configure(bg=self.BG)
         self.icon_photos: dict[tuple[str, str, int], object] = {}
         self.match_by_row: dict[str, dict] = {}
+        self.current_matches: list[dict] = []
         self._configure_styles()
         self._build_ui()
 
@@ -359,23 +360,31 @@ class LolApp(tk.Tk):
         self.riot_id_var = tk.StringVar()
         self.region_var = tk.StringVar(value="Europa Pn.-Wsch. (EUNE)")
         self.api_key_var = tk.StringVar(value=os.environ.get("RIOT_API_KEY", ""))
+        self.match_count_var = tk.StringVar(value="30")
 
         ttk.Label(search, text="RIOT ID", style="CardLabel.TLabel").grid(row=0, column=0, sticky="w")
         ttk.Label(search, text="REGION", style="CardLabel.TLabel").grid(row=0, column=1, sticky="w", padx=(14, 0))
         ttk.Label(search, text="KLUCZ RIOT API", style="CardLabel.TLabel").grid(row=0, column=2, sticky="w", padx=(14, 0))
+        ttk.Label(search, text="MECZE", style="CardLabel.TLabel").grid(row=0, column=3, sticky="w", padx=(14, 0))
         self.riot_entry = ttk.Entry(search, textvariable=self.riot_id_var, width=38)
         self.riot_entry.grid(row=1, column=0, sticky="ew", pady=(4, 0))
         region_box = ttk.Combobox(search, textvariable=self.region_var, values=list(REGIONS), state="readonly", width=31)
         region_box.grid(row=1, column=1, sticky="ew", padx=(14, 0), pady=(4, 0))
         self.api_key_entry = ttk.Entry(search, textvariable=self.api_key_var, show="•")
         self.api_key_entry.grid(row=1, column=2, sticky="ew", padx=(14, 0), pady=(4, 0))
+        match_count_box = ttk.Combobox(
+            search, textvariable=self.match_count_var,
+            values=("10", "20", "30", "50"), state="readonly", width=5,
+        )
+        match_count_box.grid(row=1, column=3, sticky="ew", padx=(14, 0), pady=(4, 0))
         self.search_button = ttk.Button(
             search, text="Wyszukaj", style="Accent.TButton", command=self.search
         )
-        self.search_button.grid(row=1, column=3, padx=(14, 0), pady=(4, 0))
+        self.search_button.grid(row=1, column=4, padx=(14, 0), pady=(4, 0))
         search.columnconfigure(0, weight=2)
         search.columnconfigure(1, weight=1)
         search.columnconfigure(2, weight=2)
+        search.columnconfigure(3, weight=0)
         self.riot_entry.bind("<Return>", lambda _event: self.search())
 
         content = ttk.Frame(outer)
@@ -430,13 +439,46 @@ class LolApp(tk.Tk):
         self.notebook.add(self.chart_tab, text="  Analiza ranked  ")
         self.notebook.add(self.stats_tab, text="  Statystyki  ")
 
-        table_header = ttk.Frame(table_tab, style="Card.TFrame", padding=(12, 8))
+        table_header = ttk.Frame(table_tab, style="Card.TFrame", padding=(10, 7))
         table_header.pack(fill="x")
         ttk.Label(
             table_header,
-            text="Kliknij dwukrotnie mecz, aby zobaczyć drużyny, statystyki i przedmioty",
+            text="FILTRY",
+            style="CardLabel.TLabel",
+        ).pack(side="left", padx=(0, 8))
+        self.history_queue_var = tk.StringVar(value="Wszystkie tryby")
+        self.history_result_var = tk.StringVar(value="Wszystkie wyniki")
+        self.history_champion_var = tk.StringVar()
+        queue_filter = ttk.Combobox(
+            table_header, textvariable=self.history_queue_var,
+            values=("Wszystkie tryby", "Ranked", "Normal", "ARAM", "Arena"),
+            state="readonly", width=15,
+        )
+        queue_filter.pack(side="left", padx=(0, 6))
+        result_filter = ttk.Combobox(
+            table_header, textvariable=self.history_result_var,
+            values=("Wszystkie wyniki", "Wygrane", "Przegrane"),
+            state="readonly", width=16,
+        )
+        result_filter.pack(side="left", padx=(0, 6))
+        champion_filter = ttk.Entry(
+            table_header, textvariable=self.history_champion_var, width=17
+        )
+        champion_filter.pack(side="left")
+        self.filter_count_label = ttk.Label(
+            table_header, text="", style="CardMuted.TLabel"
+        )
+        self.filter_count_label.pack(side="right")
+        for widget in (queue_filter, result_filter):
+            widget.bind("<<ComboboxSelected>>", lambda _event: self._apply_match_filters())
+        champion_filter.bind("<KeyRelease>", lambda _event: self._apply_match_filters())
+        champion_filter.insert(0, "")
+        ttk.Label(
+            table_tab,
+            text="Dwuklik otwiera drużyny, statystyki i przedmioty wybranego meczu",
             style="CardMuted.TLabel",
-        ).pack(anchor="w")
+            padding=(12, 6),
+        ).pack(fill="x")
         table_frame = ttk.Frame(table_tab, style="Card.TFrame")
         table_frame.pack(fill="both", expand=True)
         columns = ("result", "champion", "kda", "queue", "duration", "date")
@@ -545,13 +587,15 @@ class LolApp(tk.Tk):
         client = RiotApiClient(api_key, platform, regional)
         threading.Thread(
             target=self._load_worker,
-            args=(client, game_name, tag_line),
+            args=(client, game_name, tag_line, int(self.match_count_var.get())),
             daemon=True,
         ).start()
 
-    def _load_worker(self, client: RiotApiClient, game_name: str, tag_line: str) -> None:
+    def _load_worker(
+        self, client: RiotApiClient, game_name: str, tag_line: str, match_count: int
+    ) -> None:
         try:
-            data = client.load_player(game_name, tag_line)
+            data = client.load_player(game_name, tag_line, match_count)
         except RiotApiError as error:
             self.after(0, self._show_error, str(error))
         except (KeyError, TypeError, ValueError):
@@ -596,10 +640,39 @@ class LolApp(tk.Tk):
                 title.configure(text="Bez rangi")
                 details.configure(text="Brak rozegranych gier rankingowych")
 
+        self.current_matches = list(data.matches)
+        self._apply_match_filters()
+        self._draw_ranked_chart(data.matches)
+        self._draw_statistics(data.matches)
+        self.status_label.configure(text=f"POBRANO {len(data.matches)} MECZÓW")
+
+    def _apply_match_filters(self) -> None:
+        queue_filter = self.history_queue_var.get()
+        result_filter = self.history_result_var.get()
+        champion_filter = self.history_champion_var.get().strip().casefold()
+
+        queue_groups = {
+            "Ranked": {420, 440},
+            "Normal": {400, 430, 490},
+            "ARAM": {450},
+            "Arena": {1700, 1750},
+        }
+        filtered = []
+        for match in self.current_matches:
+            if queue_filter in queue_groups and match.get("queue_id") not in queue_groups[queue_filter]:
+                continue
+            if result_filter == "Wygrane" and match.get("result") != "Wygrana":
+                continue
+            if result_filter == "Przegrane" and match.get("result") != "Przegrana":
+                continue
+            if champion_filter and champion_filter not in str(match.get("champion", "")).casefold():
+                continue
+            filtered.append(match)
+
         for item in self.matches_tree.get_children():
             self.matches_tree.delete(item)
         self.match_by_row.clear()
-        for match in data.matches:
+        for match in filtered:
             row_id = self.matches_tree.insert(
                 "",
                 "end",
@@ -611,10 +684,10 @@ class LolApp(tk.Tk):
                 tags=("win" if match["result"] == "Wygrana" else "loss",),
             )
             self.match_by_row[row_id] = match
-        self._load_history_icons(data.matches)
-        self._draw_ranked_chart(data.matches)
-        self._draw_statistics(data.matches)
-        self.status_label.configure(text=f"POBRANO {len(data.matches)} MECZÓW")
+        self.filter_count_label.configure(
+            text=f"Pokazano {len(filtered)} z {len(self.current_matches)}"
+        )
+        self._load_history_icons(filtered)
 
     def _draw_statistics(self, matches: list[dict]) -> None:
         for row_id in self.champion_tree.get_children():
