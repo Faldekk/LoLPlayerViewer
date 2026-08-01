@@ -8,10 +8,12 @@ __pycache__/
 *.py[cod]
 .venv/
 venv/
+build/
+dist/
+*.spec
 
 # Sekrety i konfiguracja lokalna
 .env
 .env.*
 config.json
 secrets.json
-
