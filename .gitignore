@@ -1,0 +1,17 @@
+# Visual Studio
+.vs/
+*.user
+*.suo
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Sekrety i konfiguracja lokalna
+.env
+.env.*
+config.json
+secrets.json
+

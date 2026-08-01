@@ -1,0 +1,23 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 18
+VisualStudioVersion = 18.8.12009.203 stable
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "LeagueOfLegendsAPP", "LeagueOfLegendsAPP\LeagueOfLegendsAPP.pyproj", "{72902504-2A6D-4B33-A5FA-94075C4B6612}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{72902504-2A6D-4B33-A5FA-94075C4B6612}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{72902504-2A6D-4B33-A5FA-94075C4B6612}.Release|Any CPU.ActiveCfg = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {1CCADB96-DF5C-4FE1-9DF4-FBCFF7661B41}
+	EndGlobalSection
+EndGlobal
