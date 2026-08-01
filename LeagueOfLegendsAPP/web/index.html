@@ -6,6 +6,7 @@
   <title>LoL Player Viewer</title>
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="chart-tooltip.css">
+  <link rel="stylesheet" href="live-game.css">
 </head>
 <body>
   <div class="app-shell">
@@ -15,6 +16,7 @@
         <button class="nav-item active" data-tab="history"><span>◫</span>Historia</button>
         <button class="nav-item" data-tab="ranked"><span>⌁</span>Ranked</button>
         <button class="nav-item" data-tab="stats"><span>◈</span>Statystyki</button>
+        <button class="nav-item" data-tab="live"><span>●</span>Live Game</button>
       </nav>
       <div class="sidebar-bottom"><span class="status-dot"></span> Riot API</div>
     </aside>
@@ -78,6 +80,14 @@
             <article><span>OBRAŻENIA</span><strong id="metricDamage">—</strong></article>
           </div>
           <div class="champion-card"><div class="toolbar"><div><h3>Champion pool</h3><p>Najczęściej wybierani bohaterowie</p></div></div><div id="championStats"></div></div>
+        </section>
+
+        <section id="live" class="view">
+          <div class="toolbar">
+            <div><h3>Live Game</h3><p>Aktualny mecz wyszukanego gracza</p></div>
+            <button id="refreshLiveBtn" class="live-refresh">Odśwież</button>
+          </div>
+          <div id="liveGameContent"></div>
         </section>
       </div>
     </main>

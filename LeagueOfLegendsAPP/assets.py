@@ -11,6 +11,7 @@ class DataDragonAssets:
     _version: str | None = None
     _bytes_cache: dict[tuple[str, str], bytes] = {}
     _lock = threading.Lock()
+    _champion_map: dict[str, str] | None = None
 
     @classmethod
     def get_version(cls) -> str:
@@ -26,6 +27,26 @@ class DataDragonAssets:
         with cls._lock:
             cls._version = version
         return version
+
+    @classmethod
+    def get_champion_map(cls) -> dict[str, str]:
+        with cls._lock:
+            if cls._champion_map is not None:
+                return cls._champion_map.copy()
+        version = cls.get_version()
+        request = urllib.request.Request(
+            f"https://ddragon.leagueoflegends.com/cdn/{version}/data/en_US/champion.json",
+            headers={"User-Agent": "LoL-Player-Viewer/1.0"},
+        )
+        with urllib.request.urlopen(request, timeout=12) as response:
+            payload = json.load(response)
+        champion_map = {
+            str(champion["key"]): champion["id"]
+            for champion in payload.get("data", {}).values()
+        }
+        with cls._lock:
+            cls._champion_map = champion_map
+        return champion_map.copy()
 
     @classmethod
     def load(cls, kind: str, asset_id: str | int) -> bytes | None:

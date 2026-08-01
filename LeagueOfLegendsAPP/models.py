@@ -10,3 +10,5 @@ class PlayerData:
     ranks: list[dict]
     matches: list[dict]
     profile_icon_id: int = 0
+    puuid: str = ""
+    live_game: dict | None = None

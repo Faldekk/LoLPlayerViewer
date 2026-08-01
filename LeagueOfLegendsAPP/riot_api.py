@@ -20,7 +20,7 @@ class RiotApiClient:
         self.platform = platform
         self.regional = regional
 
-    def _get(self, host: str, path: str):
+    def _get(self, host: str, path: str, allow_not_found: bool = False):
         request = urllib.request.Request(
             f"https://{host}.api.riotgames.com{path}",
             headers={"X-Riot-Token": self.api_key, "User-Agent": "LoL-Player-Viewer/1.0"},
@@ -34,6 +34,8 @@ class RiotApiClient:
                     )
                 return data
         except urllib.error.HTTPError as error:
+            if error.code == 404 and allow_not_found:
+                return None
             messages = {
                 400: "Riot API odrzuciło nieprawidłowe dane.",
                 401: "Klucz Riot API jest nieprawidłowy lub wygasł.",
@@ -97,7 +99,49 @@ class RiotApiClient:
             ranks=ranks if isinstance(ranks, list) else [],
             matches=matches,
             profile_icon_id=int(summoner.get("profileIconId", 0)) if isinstance(summoner, dict) else 0,
+            puuid=puuid,
+            live_game=self.load_live_game(puuid),
         )
+
+    def load_live_game(self, puuid: str) -> dict | None:
+        """Zwraca aktualną grę gracza lub None, gdy gracz nie jest w meczu."""
+        game = self._get(
+            self.platform,
+            f"/lol/spectator/v5/active-games/by-summoner/{self._quote(puuid)}",
+            allow_not_found=True,
+        )
+        if not isinstance(game, dict):
+            return None
+        return {
+            "game_id": str(game.get("gameId", "")),
+            "game_mode": game.get("gameMode", "Gra niestandardowa"),
+            "queue_id": int(game.get("gameQueueConfigId", 0) or 0),
+            "game_length": max(0, int(game.get("gameLength", 0) or 0)),
+            "started_at": int(game.get("gameStartTime", 0) or 0),
+            "participants": [
+                {
+                    "puuid": item.get("puuid", ""),
+                    "riot_id": item.get("riotId")
+                    or item.get("summonerName")
+                    or "Gracz",
+                    "team_id": int(item.get("teamId", 0) or 0),
+                    "champion_id": int(item.get("championId", 0) or 0),
+                    "profile_icon_id": int(item.get("profileIconId", 0) or 0),
+                    "spell1_id": int(item.get("spell1Id", 0) or 0),
+                    "spell2_id": int(item.get("spell2Id", 0) or 0),
+                    "bot": bool(item.get("bot", False)),
+                }
+                for item in game.get("participants", [])
+            ],
+            "bans": [
+                {
+                    "team_id": int(item.get("teamId", 0) or 0),
+                    "champion_id": int(item.get("championId", 0) or 0),
+                    "pick_turn": int(item.get("pickTurn", 0) or 0),
+                }
+                for item in game.get("bannedChampions", [])
+            ],
+        }
 
     @staticmethod
     def _summarize_match(info: dict, participant: dict) -> dict:

@@ -23,6 +23,10 @@ Desktopowa aplikacja z backendem Python i nowoczesnym interfejsem HTML/CSS/JavaS
 - pobieranie danych w tle bez zawieszania interfejsu,
 - bezpieczne, zamaskowane pole na klucz Riot API.
 
+### Live Game
+
+Zakładka Live Game pokazuje aktywny mecz wyszukanego gracza: obie drużyny, championów, summoner spelle oraz aktualny czas gry. Dane odświeżają się automatycznie co 60 sekund lub po użyciu przycisku Odśwież.
+
 ## Wymagania
 
 - Windows 10 lub Windows 11,

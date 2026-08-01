@@ -28,6 +28,8 @@ from storage import FavoritesStore
 class AppBridge:
     def __init__(self) -> None:
         self.store = FavoritesStore()
+        self.live_client: RiotApiClient | None = None
+        self.live_puuid = ""
 
     def bootstrap(self) -> dict:
         return {"regions": list(REGIONS), "favorites": self.store.load()}
@@ -48,18 +50,29 @@ class AppBridge:
             return {"ok": False, "error": "Nazwa i TAG nie mogą być puste."}
         platform, regional = REGIONS[region_name]
         try:
-            player = RiotApiClient(api_key, platform, regional).load_player(
-                game_name, tag_line, int(match_count)
-            )
+            client = RiotApiClient(api_key, platform, regional)
+            player = client.load_player(game_name, tag_line, int(match_count))
+            self.live_client, self.live_puuid = client, player.puuid
             try:
                 version = DataDragonAssets.get_version()
+                champion_map = DataDragonAssets.get_champion_map()
             except Exception:
                 version = None
+                champion_map = {}
         except RiotApiError as error:
             return {"ok": False, "error": str(error)}
         except (KeyError, TypeError, ValueError):
             return {"ok": False, "error": "Riot API zwróciło nieoczekiwane dane."}
-        return {"ok": True, "player": asdict(player), "ddragon_version": version}
+        return {"ok": True, "player": asdict(player), "ddragon_version": version, "champion_map": champion_map}
+
+    def refresh_live_game(self) -> dict:
+        if self.live_client is None or not self.live_puuid:
+            return {"ok": False, "error": "Najpierw wyszukaj gracza."}
+        try:
+            game = self.live_client.load_live_game(self.live_puuid)
+        except RiotApiError as error:
+            return {"ok": False, "error": str(error)}
+        return {"ok": True, "live_game": game}
 
     def toggle_favorite(self, riot_id: str, region: str) -> dict:
         favorites = self.store.load()
