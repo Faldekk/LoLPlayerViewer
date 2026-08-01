@@ -1,9 +1,23 @@
 """Nowoczesny interfejs HTML/CSS/JS uruchamiany w natywnym oknie WebView."""
 
 from dataclasses import asdict
+import os
 from pathlib import Path
+import sys
 
-import webview
+try:
+    import webview
+except ImportError:
+    project_python = Path(__file__).resolve().parent.parent / ".venv" / "Scripts" / "python.exe"
+    current_python = Path(sys.executable).resolve()
+    if project_python.exists() and current_python != project_python.resolve():
+        os.execv(
+            str(project_python),
+            [str(project_python), str(Path(__file__).resolve()), *sys.argv[1:]],
+        )
+    raise SystemExit(
+        "Brak PyWebView. Uruchom: python -m pip install -r requirements.txt"
+    )
 
 from assets import DataDragonAssets
 from config import REGIONS
