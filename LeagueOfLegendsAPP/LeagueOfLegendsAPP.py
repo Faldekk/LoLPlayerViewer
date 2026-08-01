@@ -148,22 +148,6 @@ class LolApp(tk.Tk):
             style="Subtitle.TLabel",
         ).pack(anchor="w", pady=(2, 0))
 
-        favorites_box = ttk.Frame(header)
-        favorites_box.pack(side="right", anchor="s")
-        ttk.Label(favorites_box, text="ULUBIENI", style="Eyebrow.TLabel").pack(anchor="w")
-        favorites_controls = ttk.Frame(favorites_box)
-        favorites_controls.pack(pady=(4, 0))
-        self.favorite_var = tk.StringVar()
-        self.favorite_combo = ttk.Combobox(
-            favorites_controls, textvariable=self.favorite_var,
-            state="readonly", width=29,
-        )
-        self.favorite_combo.pack(side="left")
-        self.favorite_combo.bind(
-            "<<ComboboxSelected>>", lambda _event: self._load_selected_favorite()
-        )
-        self._refresh_favorites()
-
         search = ttk.Frame(outer, style="Card.TFrame", padding=18)
         search.pack(fill="x", pady=(0, 16))
         self.riot_id_var = tk.StringVar()
@@ -205,11 +189,34 @@ class LolApp(tk.Tk):
         cards = ttk.Frame(content)
         cards.grid(row=0, column=1, sticky="nsew", padx=(16, 0))
         cards.columnconfigure(0, weight=1)
-        for row in range(3):
-            cards.rowconfigure(row, weight=1, uniform="profile_cards")
+        cards.rowconfigure(0, weight=0)
+        cards.rowconfigure(1, weight=2)
+        cards.rowconfigure(2, weight=1)
+        cards.rowconfigure(3, weight=1)
+
+        favorites_card = ttk.Frame(cards, style="Card.TFrame", padding=14)
+        favorites_card.grid(row=0, column=0, sticky="ew", pady=(0, 6))
+        ttk.Label(
+            favorites_card, text="★  ULUBIENI GRACZE", style="CardLabel.TLabel"
+        ).pack(anchor="w")
+        self.favorite_var = tk.StringVar()
+        self.favorite_combo = ttk.Combobox(
+            favorites_card, textvariable=self.favorite_var,
+            state="readonly", width=26,
+        )
+        self.favorite_combo.pack(fill="x", pady=(7, 0))
+        self.favorite_combo.bind(
+            "<<ComboboxSelected>>", lambda _event: self._load_selected_favorite()
+        )
+        ttk.Label(
+            favorites_card,
+            text="Wybór z listy wczyta zapisany profil",
+            style="CardMuted.TLabel",
+        ).pack(anchor="w", pady=(5, 0))
+        self._refresh_favorites()
 
         profile = ttk.Frame(cards, style="Card.TFrame", padding=16)
-        profile.grid(row=0, column=0, sticky="nsew", pady=(0, 6))
+        profile.grid(row=1, column=0, sticky="nsew", pady=6)
         ttk.Label(profile, text="GRACZ", style="CardLabel.TLabel").pack(anchor="w")
         profile_body = ttk.Frame(profile, style="Card.TFrame")
         profile_body.pack(fill="x", pady=(6, 0))
@@ -233,7 +240,7 @@ class LolApp(tk.Tk):
         for index in range(2):
             card = ttk.Frame(cards, style="Card.TFrame", padding=16)
             card.grid(
-                row=index + 1, column=0, sticky="nsew",
+                row=index + 2, column=0, sticky="nsew",
                 pady=(6, 0) if index else 6,
             )
             queue_label = "SOLO / DUO" if index == 0 else "FLEX 5V5"
@@ -383,9 +390,15 @@ class LolApp(tk.Tk):
 
     def _refresh_favorites(self) -> None:
         labels = [self._favorite_label(item) for item in self.favorites]
-        self.favorite_combo.configure(values=labels)
-        if self.favorite_var.get() not in labels:
-            self.favorite_var.set("")
+        if labels:
+            self.favorite_combo.configure(values=labels, state="readonly")
+            if self.favorite_var.get() not in labels:
+                self.favorite_var.set("Wybierz gracza…")
+        else:
+            self.favorite_combo.configure(
+                values=("Brak zapisanych graczy",), state="disabled"
+            )
+            self.favorite_var.set("Brak zapisanych graczy")
 
     def _current_favorite_index(self) -> int | None:
         if not self.current_player:
