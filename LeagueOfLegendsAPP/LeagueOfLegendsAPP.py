@@ -49,6 +49,7 @@ QUEUE_NAMES = {
     450: "ARAM",
     490: "Quickplay",
     1700: "Arena",
+    1750: "Arena (1750)",
 }
 
 class RiotApiError(Exception):
@@ -175,8 +176,8 @@ class LolApp(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
         self.title("LoL Player Viewer")
-        self.geometry("1180x800")
-        self.minsize(940, 650)
+        self.geometry("1050x720")
+        self.minsize(900, 620)
         self.configure(bg=self.BG)
         self._configure_styles()
         self._build_ui()
