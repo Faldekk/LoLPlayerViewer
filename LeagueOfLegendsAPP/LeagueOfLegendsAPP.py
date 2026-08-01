@@ -40,12 +40,6 @@ QUEUE_NAMES = {
     1700: "Arena",
 }
 
-RANKED_QUEUE_NAMES = {
-    "RANKED_SOLO_5x5": "Solo/Duo",
-    "RANKED_FLEX_SR": "Flex 5v5",
-}
-
-
 class RiotApiError(Exception):
     """Czytelny dla użytkownika błąd Riot API."""
 
@@ -157,20 +151,21 @@ class RiotApiClient:
 
 
 class LolApp(tk.Tk):
-    BG = "#071426"
-    PANEL = "#10233d"
-    PANEL_ALT = "#152c4a"
-    GOLD = "#c89b3c"
-    TEXT = "#f0e6d2"
-    MUTED = "#a7b1c2"
-    BLUE = "#0ac8b9"
-    RED = "#e05252"
+    BG = "#f4f7fb"
+    PANEL = "#ffffff"
+    PANEL_ALT = "#edf2f8"
+    BORDER = "#dce3ec"
+    GOLD = "#2563eb"
+    TEXT = "#172033"
+    MUTED = "#687386"
+    BLUE = "#16a36a"
+    RED = "#dc4c64"
 
     def __init__(self) -> None:
         super().__init__()
         self.title("LoL Player Viewer")
-        self.geometry("1920x1080")
-        self.minsize(850, 580)
+        self.geometry("1180x800")
+        self.minsize(940, 650)
         self.configure(bg=self.BG)
         self._configure_styles()
         self._build_ui()
@@ -179,96 +174,141 @@ class LolApp(tk.Tk):
         style = ttk.Style(self)
         style.theme_use("clam")
         style.configure("TFrame", background=self.BG)
-        style.configure("Panel.TFrame", background=self.PANEL)
-        style.configure("TLabel", background=self.BG, foreground=self.TEXT, font=("Segoe UI", 10))
-        style.configure("Title.TLabel", font=("Segoe UI Semibold", 24), foreground=self.GOLD)
-        style.configure("Subtitle.TLabel", foreground=self.MUTED)
-        style.configure("Player.TLabel", font=("Segoe UI Semibold", 18), background=self.PANEL)
-        style.configure("Panel.TLabel", background=self.PANEL, foreground=self.MUTED)
-        style.configure("Accent.TButton", font=("Segoe UI Semibold", 10), padding=(16, 8), background=self.GOLD, foreground="#081321")
-        style.map("Accent.TButton", background=[("active", "#e1b955"), ("disabled", "#6f6655")])
-        style.configure("TEntry", padding=7, fieldbackground="#e8edf5", foreground="#111827")
-        style.configure("TCombobox", padding=6, fieldbackground="#e8edf5", foreground="#111827")
-        style.configure("Treeview", background=self.PANEL, fieldbackground=self.PANEL, foreground=self.TEXT, rowheight=31, borderwidth=0)
-        style.configure("Treeview.Heading", background=self.PANEL_ALT, foreground=self.GOLD, font=("Segoe UI Semibold", 9), relief="flat")
-        style.map("Treeview", background=[("selected", "#1f5272")])
+        style.configure("Card.TFrame", background=self.PANEL, relief="solid", borderwidth=1)
+        style.configure(
+            "TLabel", background=self.BG, foreground=self.TEXT, font=("Segoe UI", 10)
+        )
+        style.configure(
+            "Title.TLabel", font=("Segoe UI Semibold", 26), foreground=self.TEXT
+        )
+        style.configure("Subtitle.TLabel", foreground=self.MUTED, font=("Segoe UI", 10))
+        style.configure(
+            "Eyebrow.TLabel", foreground=self.GOLD, font=("Segoe UI Semibold", 9)
+        )
+        style.configure(
+            "CardTitle.TLabel", font=("Segoe UI Semibold", 17),
+            background=self.PANEL, foreground=self.TEXT,
+        )
+        style.configure(
+            "CardLabel.TLabel", background=self.PANEL, foreground=self.MUTED,
+            font=("Segoe UI Semibold", 9),
+        )
+        style.configure(
+            "CardMuted.TLabel", background=self.PANEL, foreground=self.MUTED,
+        )
+        style.configure(
+            "Status.TLabel", background=self.PANEL, foreground=self.GOLD,
+            font=("Segoe UI Semibold", 9),
+        )
+        style.configure(
+            "Accent.TButton", font=("Segoe UI Semibold", 10), padding=(20, 10),
+            background=self.GOLD, foreground="#ffffff", borderwidth=0,
+        )
+        style.map(
+            "Accent.TButton",
+            background=[("active", "#1d4ed8"), ("disabled", "#9aafcf")],
+        )
+        style.configure(
+            "TEntry", padding=9, fieldbackground="#ffffff", foreground=self.TEXT,
+            bordercolor=self.BORDER, lightcolor=self.BORDER, darkcolor=self.BORDER,
+        )
+        style.configure(
+            "TCombobox", padding=8, fieldbackground="#ffffff", foreground=self.TEXT,
+            bordercolor=self.BORDER, arrowcolor=self.MUTED,
+        )
+        style.configure(
+            "Treeview", background=self.PANEL, fieldbackground=self.PANEL,
+            foreground=self.TEXT, rowheight=36, borderwidth=0, font=("Segoe UI", 10),
+        )
+        style.configure(
+            "Treeview.Heading", background=self.PANEL_ALT, foreground=self.MUTED,
+            font=("Segoe UI Semibold", 9), relief="flat", padding=(8, 9),
+        )
+        style.map("Treeview", background=[("selected", "#dbeafe")], foreground=[("selected", self.TEXT)])
         style.configure("TNotebook", background=self.BG, borderwidth=0)
         style.configure(
-            "TNotebook.Tab", background=self.PANEL, foreground=self.MUTED,
-            padding=(18, 9), font=("Segoe UI Semibold", 10),
+            "TNotebook.Tab", background=self.BG, foreground=self.MUTED,
+            padding=(18, 10), font=("Segoe UI Semibold", 10), borderwidth=0,
         )
         style.map(
             "TNotebook.Tab",
-            background=[("selected", self.PANEL_ALT)],
+            background=[("selected", self.PANEL)],
             foreground=[("selected", self.GOLD)],
         )
 
     def _build_ui(self) -> None:
-        outer = ttk.Frame(self, padding=24)
+        outer = ttk.Frame(self, padding=(30, 24))
         outer.pack(fill="both", expand=True)
 
-        ttk.Label(outer, text="LoL Player Viewer", style="Title.TLabel").pack(anchor="w")
+        header = ttk.Frame(outer)
+        header.pack(fill="x", pady=(0, 20))
+        heading = ttk.Frame(header)
+        heading.pack(side="left")
+        ttk.Label(heading, text="LEAGUE STATS", style="Eyebrow.TLabel").pack(anchor="w")
+        ttk.Label(heading, text="LoL Player Viewer", style="Title.TLabel").pack(anchor="w")
         ttk.Label(
-            outer,
-            text="Profil, ranking i ostatnie mecze gracza League of Legends",
+            heading, text="Sprawdź formę gracza, ranking i historię ostatnich gier.",
             style="Subtitle.TLabel",
-        ).pack(anchor="w", pady=(0, 18))
+        ).pack(anchor="w", pady=(2, 0))
 
-        search = ttk.Frame(outer)
-        search.pack(fill="x", pady=(0, 18))
+        search = ttk.Frame(outer, style="Card.TFrame", padding=18)
+        search.pack(fill="x", pady=(0, 16))
         self.riot_id_var = tk.StringVar()
         self.region_var = tk.StringVar(value="Europa Pn.-Wsch. (EUNE)")
         self.api_key_var = tk.StringVar(value=os.environ.get("RIOT_API_KEY", ""))
 
-        ttk.Label(search, text="Riot ID (Nazwa#TAG)").grid(row=0, column=0, sticky="w")
-        ttk.Label(search, text="Region").grid(row=0, column=1, sticky="w", padx=(12, 0))
+        ttk.Label(search, text="RIOT ID", style="CardLabel.TLabel").grid(row=0, column=0, sticky="w")
+        ttk.Label(search, text="REGION", style="CardLabel.TLabel").grid(row=0, column=1, sticky="w", padx=(14, 0))
+        ttk.Label(search, text="KLUCZ RIOT API", style="CardLabel.TLabel").grid(row=0, column=2, sticky="w", padx=(14, 0))
         self.riot_entry = ttk.Entry(search, textvariable=self.riot_id_var, width=38)
         self.riot_entry.grid(row=1, column=0, sticky="ew", pady=(4, 0))
         region_box = ttk.Combobox(search, textvariable=self.region_var, values=list(REGIONS), state="readonly", width=31)
-        region_box.grid(row=1, column=1, sticky="ew", padx=(12, 0), pady=(4, 0))
-        ttk.Label(search, text="Klucz Riot API").grid(
-            row=2, column=0, columnspan=2, sticky="w", pady=(10, 0)
-        )
+        region_box.grid(row=1, column=1, sticky="ew", padx=(14, 0), pady=(4, 0))
         self.api_key_entry = ttk.Entry(search, textvariable=self.api_key_var, show="•")
-        self.api_key_entry.grid(row=3, column=0, columnspan=2, sticky="ew", pady=(4, 0))
+        self.api_key_entry.grid(row=1, column=2, sticky="ew", padx=(14, 0), pady=(4, 0))
         self.search_button = ttk.Button(
             search, text="Wyszukaj", style="Accent.TButton", command=self.search
         )
-        self.search_button.grid(row=3, column=2, padx=(12, 0), pady=(4, 0))
+        self.search_button.grid(row=1, column=3, padx=(14, 0), pady=(4, 0))
         search.columnconfigure(0, weight=2)
         search.columnconfigure(1, weight=1)
+        search.columnconfigure(2, weight=2)
         self.riot_entry.bind("<Return>", lambda _event: self.search())
 
-        profile = ttk.Frame(outer, style="Panel.TFrame", padding=18)
-        profile.pack(fill="x", pady=(0, 14))
-        self.player_label = ttk.Label(profile, text="Wyszukaj gracza", style="Player.TLabel")
-        self.player_label.pack(side="left")
-        self.level_label = ttk.Label(profile, text="", style="Panel.TLabel")
-        self.level_label.pack(side="left", padx=(18, 0))
-        self.status_label = ttk.Label(profile, text="Gotowe", style="Panel.TLabel")
-        self.status_label.pack(side="right")
+        cards = ttk.Frame(outer)
+        cards.pack(fill="x", pady=(0, 16))
+        profile = ttk.Frame(cards, style="Card.TFrame", padding=16)
+        profile.grid(row=0, column=0, sticky="nsew", padx=(0, 6))
+        ttk.Label(profile, text="GRACZ", style="CardLabel.TLabel").pack(anchor="w")
+        self.player_label = ttk.Label(profile, text="Wyszukaj gracza", style="CardTitle.TLabel")
+        self.player_label.pack(anchor="w", pady=(5, 0))
+        self.level_label = ttk.Label(profile, text="Poziom —", style="CardMuted.TLabel")
+        self.level_label.pack(anchor="w", pady=(3, 0))
+        self.status_label = ttk.Label(profile, text="GOTOWE", style="Status.TLabel")
+        self.status_label.pack(anchor="w", pady=(9, 0))
 
-        rank_frame = ttk.Frame(outer)
-        rank_frame.pack(fill="x", pady=(0, 14))
         self.rank_labels = []
         for index in range(2):
-            card = ttk.Frame(rank_frame, style="Panel.TFrame", padding=14)
-            card.grid(row=0, column=index, sticky="ew", padx=(0, 7) if index == 0 else (7, 0))
-            title = ttk.Label(card, text="Brak danych", style="Player.TLabel")
-            title.pack(anchor="w")
-            details = ttk.Label(card, text="—", style="Panel.TLabel")
-            details.pack(anchor="w", pady=(4, 0))
+            card = ttk.Frame(cards, style="Card.TFrame", padding=16)
+            card.grid(row=0, column=index + 1, sticky="nsew", padx=(6, 0) if index else 6)
+            queue_label = "SOLO / DUO" if index == 0 else "FLEX 5V5"
+            ttk.Label(card, text=queue_label, style="CardLabel.TLabel").pack(anchor="w")
+            title = ttk.Label(card, text="Bez danych", style="CardTitle.TLabel")
+            title.pack(anchor="w", pady=(5, 0))
+            details = ttk.Label(card, text="Brak rozegranych gier", style="CardMuted.TLabel")
+            details.pack(anchor="w", pady=(3, 0))
             self.rank_labels.append((title, details))
-            rank_frame.columnconfigure(index, weight=1)
+        for index in range(3):
+            cards.columnconfigure(index, weight=1, uniform="cards")
 
         notebook = ttk.Notebook(outer)
         notebook.pack(fill="both", expand=True)
-        table_tab = ttk.Frame(notebook, padding=(0, 10, 0, 0))
-        self.chart_tab = ttk.Frame(notebook, padding=(0, 10, 0, 0))
+        table_tab = ttk.Frame(notebook, style="Card.TFrame", padding=1)
+        self.chart_tab = ttk.Frame(notebook, style="Card.TFrame", padding=12)
         notebook.add(table_tab, text="  Historia meczów  ")
         notebook.add(self.chart_tab, text="  Analiza ranked  ")
 
-        table_frame = ttk.Frame(table_tab)
+        table_frame = ttk.Frame(table_tab, style="Card.TFrame")
         table_frame.pack(fill="both", expand=True)
         columns = ("result", "champion", "kda", "queue", "duration", "date")
         self.matches_tree = ttk.Treeview(table_frame, columns=columns, show="headings")
@@ -290,7 +330,7 @@ class LolApp(tk.Tk):
         self.chart_placeholder = ttk.Label(
             self.chart_tab,
             text="Wyszukaj gracza, aby zobaczyć wykres meczów rankingowych.",
-            style="Subtitle.TLabel",
+            style="CardMuted.TLabel",
         )
         self.chart_placeholder.pack(expand=True)
         self.chart_canvas = None
@@ -337,7 +377,7 @@ class LolApp(tk.Tk):
 
     def _set_loading(self, loading: bool) -> None:
         self.search_button.configure(state="disabled" if loading else "normal")
-        self.status_label.configure(text="Pobieranie danych…" if loading else "Gotowe")
+        self.status_label.configure(text="POBIERANIE DANYCH…" if loading else "GOTOWE")
         if loading:
             self.configure(cursor="watch")
         else:
@@ -345,7 +385,7 @@ class LolApp(tk.Tk):
 
     def _show_error(self, message: str) -> None:
         self._set_loading(False)
-        self.status_label.configure(text="Nie udało się pobrać danych")
+        self.status_label.configure(text="BŁĄD POBIERANIA")
         messagebox.showerror("Błąd", message)
 
     def _display_player(self, data: PlayerData) -> None:
@@ -357,7 +397,6 @@ class LolApp(tk.Tk):
         for labels, queue_type in zip(self.rank_labels, ("RANKED_SOLO_5x5", "RANKED_FLEX_SR")):
             title, details = labels
             entry = ranks_by_queue.get(queue_type)
-            queue_name = RANKED_QUEUE_NAMES[queue_type]
             if entry:
                 tier = str(entry.get("tier", "")).title()
                 division = entry.get("rank", "")
@@ -366,10 +405,10 @@ class LolApp(tk.Tk):
                 losses = entry.get("losses", 0)
                 games = wins + losses
                 win_rate = round(wins / games * 100) if games else 0
-                title.configure(text=f"{queue_name}: {tier} {division} — {lp} LP")
+                title.configure(text=f"{tier} {division}  ·  {lp} LP")
                 details.configure(text=f"{wins} W / {losses} L  •  {win_rate}% zwycięstw")
             else:
-                title.configure(text=f"{queue_name}: bez rangi")
+                title.configure(text="Bez rangi")
                 details.configure(text="Brak rozegranych gier rankingowych")
 
         for item in self.matches_tree.get_children():
@@ -386,7 +425,7 @@ class LolApp(tk.Tk):
                 tags=("win" if match["result"] == "Wygrana" else "loss",),
             )
         self._draw_ranked_chart(data.matches)
-        self.status_label.configure(text=f"Pobrano {len(data.matches)} meczów")
+        self.status_label.configure(text=f"POBRANO {len(data.matches)} MECZÓW")
 
     def _draw_ranked_chart(self, matches: list[dict]) -> None:
         if self.chart_canvas is not None:
@@ -434,9 +473,9 @@ class LolApp(tk.Tk):
         axis.set_xlabel("Kolejne mecze (zielony = wygrana, czerwony = przegrana)", color=self.MUTED)
         axis.set_ylabel("KDA", color=self.MUTED)
         axis.tick_params(colors=self.MUTED)
-        axis.grid(axis="y", color="#38506d", alpha=0.35)
+        axis.grid(axis="y", color=self.BORDER, alpha=0.8)
         axis.spines[["top", "right"]].set_visible(False)
-        axis.spines[["bottom", "left"]].set_color("#38506d")
+        axis.spines[["bottom", "left"]].set_color(self.BORDER)
         axis.set_xticks(x_values)
         axis.set_ylim(bottom=0)
         figure.tight_layout()
