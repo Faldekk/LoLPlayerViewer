@@ -2,9 +2,14 @@
 
 import json
 from pathlib import Path
+import sys
 
 
-CONFIG_PATH = Path(__file__).resolve().parent.parent / "config.json"
+CONFIG_PATH = (
+    Path(sys.executable).resolve().parent / "config.json"
+    if getattr(sys, "frozen", False)
+    else Path(__file__).resolve().parent.parent / "config.json"
+)
 
 
 def load_api_key() -> str:

@@ -98,6 +98,10 @@ W Visual Studio jako interpreter projektu wybierz:
 
 W Visual Studio plik `web_ui.py` jest ustawiony jako domyślny plik startowy.
 
+### Wersja Windows EXE
+
+Gotowe wydanie `LoLPlayerViewer.exe` jest pojedynczym plikiem i nie wymaga instalowania Pythona ani zależności. Klucz można wkleić bezpośrednio w aplikacji. Opcjonalnie można umieścić `config.json` w tym samym folderze co EXE, aby klucz został wczytany automatycznie.
+
 ## Lokalny plik z kluczem API
 
 Skopiuj `config.example.json` jako `config.json`, a następnie wpisz klucz:
