@@ -21,16 +21,22 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="api_config.py" />
     <Compile Include="assets.py" />
     <Compile Include="config.py" />
     <Compile Include="LeagueOfLegendsAPP.py" />
+    <Compile Include="live_client.py" />
     <Compile Include="models.py" />
     <Compile Include="riot_api.py" />
     <Compile Include="storage.py" />
     <Compile Include="web_ui.py" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="..\config.example.json" />
+    <Content Include="web\chart-tooltip.css" />
+    <Content Include="web\features.css" />
     <Content Include="web\index.html" />
+    <Content Include="web\live-game.css" />
     <Content Include="web\styles.css" />
     <Content Include="web\app.js" />
   </ItemGroup>
