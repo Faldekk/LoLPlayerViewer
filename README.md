@@ -38,10 +38,6 @@ Jeśli LoL działa na tym samym komputerze i wyszukane Riot ID należy do aktywn
 - wykrywanie serii zwycięstw lub porażek oraz wizualizacja ostatnich 10 wyników,
 - trwałe ustawienia motywu, koloru akcentu, regionu, liczby meczów i live refresh.
 
-### LP Tracker
-
-Każde wyszukanie profilu sprawdza rangę Solo/Duo i Flex. Jeśli LP lub dywizja zmieniły się od poprzedniego odczytu, aplikacja zapisuje nowy punkt historii i pokazuje różnicę LP oraz wykres postępu. Dane są przechowywane lokalnie w `%APPDATA%\LoLPlayerViewer\lp_history.json` i nie trafiają do repozytorium.
-
 ## Wymagania
 
 - Windows 10 lub Windows 11,

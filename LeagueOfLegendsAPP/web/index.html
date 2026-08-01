@@ -16,7 +16,6 @@
       <nav>
         <button class="nav-item active" data-tab="history"><span>◫</span>Historia</button>
         <button class="nav-item" data-tab="ranked"><span>⌁</span>Ranked</button>
-        <button class="nav-item" data-tab="lp"><span>↗</span>LP Tracker</button>
         <button class="nav-item" data-tab="stats"><span>◈</span>Statystyki</button>
         <button class="nav-item" data-tab="live"><span>●</span>Live Game</button>
         <button class="nav-item" data-tab="compare"><span>⇄</span>Porównaj</button>
@@ -74,13 +73,6 @@
         <section id="ranked" class="view">
           <div class="toolbar"><div><h3>Analiza ranked</h3><p>Forma w kolejnych grach Solo/Duo i Flex</p></div><div class="chart-controls"><select id="chartMetric"><option value="kda">KDA</option><option value="csmin">CS / min</option><option value="damage">Obrażenia</option><option value="vision">Vision</option><option value="winrate">Kroczący win rate</option></select><div id="rankedSummary" class="summary-pill"></div></div></div>
           <div class="chart-card"><canvas id="kdaChart"></canvas></div>
-        </section>
-
-        <section id="lp" class="view">
-          <div class="toolbar"><div><h3>LP Tracker</h3><p>Lokalna historia zmian rangi i League Points</p></div><div id="lpRecordCount" class="summary-pill">0 wpisów</div></div>
-          <div class="lp-cards"><article><span>SOLO / DUO</span><strong id="lpSoloCurrent">—</strong><em id="lpSoloChange">Pierwszy odczyt</em></article><article><span>FLEX 5V5</span><strong id="lpFlexCurrent">—</strong><em id="lpFlexChange">Pierwszy odczyt</em></article></div>
-          <div class="lp-chart-card"><canvas id="lpChart"></canvas></div>
-          <div class="champion-card lp-history-card"><div class="toolbar"><div><h3>Historia odczytów</h3><p>Zapisywane są wyłącznie zmiany LP lub rangi</p></div></div><div id="lpHistory"></div></div>
         </section>
 
         <section id="stats" class="view">
