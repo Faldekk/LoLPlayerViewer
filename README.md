@@ -63,11 +63,15 @@ Można też uruchomić program bez aktywowania środowiska:
 .\.venv\Scripts\python.exe .\LeagueOfLegendsAPP\LeagueOfLegendsAPP.py
 ```
 
+Na Windows możesz również dwukrotnie kliknąć plik `Uruchom_LoL_Player_Viewer.cmd`. Skrypt zawsze wybierze projektowe środowisko `.venv`, w którym zainstalowany jest Matplotlib.
+
 W Visual Studio jako interpreter projektu wybierz:
 
 ```text
 .venv\Scripts\python.exe
 ```
+
+Jeżeli Visual Studio uruchomi inny interpreter bez Matplotlib, aplikacja automatycznie przełączy się na lokalne środowisko `.venv`.
 
 ## Klucz Riot API
 

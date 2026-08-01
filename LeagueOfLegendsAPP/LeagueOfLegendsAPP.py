@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 import threading
 import urllib.error
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
 from datetime import datetime
+from pathlib import Path
 import tkinter as tk
 from tkinter import messagebox, ttk
 
@@ -15,6 +17,15 @@ try:
     from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
     from matplotlib.figure import Figure
 except ImportError:
+    project_python = Path(__file__).resolve().parent.parent / ".venv" / "Scripts" / "python.exe"
+    current_python = Path(sys.executable).resolve()
+    if __name__ == "__main__" and project_python.exists() and current_python != project_python.resolve():
+        # Visual Studio może wybrać globalny interpreter bez zależności projektu.
+        # Ponowne uruchomienie przez .venv zapewnia dostęp do Matplotlib.
+        os.execv(
+            str(project_python),
+            [str(project_python), str(Path(__file__).resolve()), *sys.argv[1:]],
+        )
     FigureCanvasTkAgg = None
     Figure = None
 
