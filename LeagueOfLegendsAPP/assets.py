@@ -1,6 +1,8 @@
 """Pobieranie i pamięci podręczna assetów z Riot Data Dragon."""
 
 import json
+import html
+import re
 import threading
 import urllib.error
 import urllib.parse
@@ -12,6 +14,7 @@ class DataDragonAssets:
     _bytes_cache: dict[tuple[str, str], bytes] = {}
     _lock = threading.Lock()
     _champion_map: dict[str, str] | None = None
+    _item_map: dict[str, dict] | None = None
 
     @classmethod
     def get_version(cls) -> str:
@@ -47,6 +50,38 @@ class DataDragonAssets:
         with cls._lock:
             cls._champion_map = champion_map
         return champion_map.copy()
+
+    @classmethod
+    def get_item_map(cls) -> dict[str, dict]:
+        with cls._lock:
+            if cls._item_map is not None:
+                return cls._item_map.copy()
+        version = cls.get_version()
+        request = urllib.request.Request(
+            f"https://ddragon.leagueoflegends.com/cdn/{version}/data/pl_PL/item.json",
+            headers={"User-Agent": "LoL-Player-Viewer/1.0"},
+        )
+        with urllib.request.urlopen(request, timeout=12) as response:
+            payload = json.load(response)
+        item_map = {}
+        for item_id, item in payload.get("data", {}).items():
+            description = html.unescape(str(item.get("description", "")))
+            description = re.sub(r"<br\s*/?>", "\n", description, flags=re.I)
+            description = re.sub(r"<[^>]+>", " ", description)
+            description = re.sub(r"[ \t]+", " ", description)
+            description = re.sub(r"\s*\n\s*", "\n", description).strip()
+            gold = item.get("gold", {})
+            item_map[str(item_id)] = {
+                "name": str(item.get("name", f"Item {item_id}")),
+                "description": description,
+                "plaintext": str(item.get("plaintext", "")),
+                "total": int(gold.get("total", 0) or 0),
+                "sell": int(gold.get("sell", 0) or 0),
+                "purchasable": bool(gold.get("purchasable", False)),
+            }
+        with cls._lock:
+            cls._item_map = item_map
+        return item_map.copy()
 
     @classmethod
     def load(cls, kind: str, asset_id: str | int) -> bytes | None:

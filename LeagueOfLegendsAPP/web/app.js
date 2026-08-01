@@ -1,7 +1,7 @@
 const $ = id => document.getElementById(id);
 const defaultSettings={theme:'dark',accent:'purple',region:'Europa Pn.-Wsch. (EUNE)',matches:'30',liveRefresh:'5',compact:false};
 const savedSettings=(()=>{try{return {...defaultSettings,...JSON.parse(localStorage.getItem('lpvSettings')||'{}')}}catch{return {...defaultSettings}}})();
-const state = { player: null, matches: [], version: null, favorites: [], region: '', chartPoints: [], championMap: {}, liveFetchedAt: 0, localLive: null, localFetchedAt: 0, settings:savedSettings };
+const state = { player: null, matches: [], version: null, favorites: [], region: '', chartPoints: [], championMap: {}, itemMap: {}, liveFetchedAt: 0, localLive: null, localFetchedAt: 0, settings:savedSettings };
 const queueGroups = { Ranked:[420,440], Normal:[400,430,490], ARAM:[450], Arena:[1700,1750] };
 const spellNames = {1:'SummonerBoost',3:'SummonerExhaust',4:'SummonerFlash',6:'SummonerHaste',7:'SummonerHeal',11:'SummonerSmite',12:'SummonerTeleport',14:'SummonerDot',21:'SummonerBarrier',32:'SummonerSnowball'};
 const esc = value => String(value ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
@@ -42,7 +42,7 @@ async function search(){
   try {
     const result = await window.pywebview.api.search($('riotId').value,$('region').value,$('apiKey').value,Number($('matchCount').value));
     if(!result.ok){ showError(result.error); return; }
-    state.player=result.player; state.matches=result.player.matches; state.version=result.ddragon_version; state.championMap=result.champion_map||{}; state.region=$('region').value; state.liveFetchedAt=Date.now();
+    state.player=result.player; state.matches=result.player.matches; state.version=result.ddragon_version; state.championMap=result.champion_map||{}; state.itemMap=result.item_map||{}; state.region=$('region').value; state.liveFetchedAt=Date.now();
     renderDashboard();
   } catch(error){ showError(`Nie udało się uruchomić wyszukiwania: ${error}`); }
   finally { $('loader').classList.add('hidden'); $('searchBtn').disabled=false; }
@@ -76,7 +76,7 @@ function renderLiveGame(){
 
 function renderLocalLiveStats(){
   const live=state.localLive,content=$('liveGameContent'),teams=['ORDER','CHAOS'];
-  content.innerHTML=`<div class="live-header"><div><div class="live-indicator">● LIVE STATS · TEN KOMPUTER</div><strong>${esc(live.game_mode)} · statystyki odświeżane co 5 sekund</strong></div><div><div id="liveClock" class="live-clock">${formatClock(liveDuration())}</div><div class="live-gold">${number(live.current_gold)} GOLD</div></div></div><div class="live-teams">${teams.map((team,index)=>`<section class="live-team ${index?'red':'blue'}"><h4>${index?'CZERWONA':'NIEBIESKA'} DRUŻYNA</h4>${live.players.filter(p=>p.team===team).map(p=>{const active=p.riot_id.toLowerCase()===live.active_riot_id.toLowerCase();return `<div class="live-stat-player ${active?'target':''}"><img class="live-champion" src="${asset('champion',p.champion)}" alt=""><div class="live-player-name"><strong>${esc(p.riot_id)}${active?' · TY':''}</strong><small>${esc(p.champion)} · ${esc(p.position||'Pozycja nieznana')} · lvl ${p.level}</small></div><div class="live-score"><strong>${p.kills} / ${p.deaths} / ${p.assists}</strong><small>${p.cs} CS · ${p.vision} vision</small></div><div class="live-items">${p.items.map(id=>`<img src="${asset('item',id)}" alt="">`).join('')}</div>${p.is_dead?`<span class="dead-badge">Odrodzenie: ${p.respawn}s</span>`:''}</div>`}).join('')}</section>`).join('')}</div>`;
+  content.innerHTML=`<div class="live-header"><div><div class="live-indicator">● LIVE STATS · TEN KOMPUTER</div><strong>${esc(live.game_mode)} · statystyki odświeżane co 5 sekund</strong></div><div><div id="liveClock" class="live-clock">${formatClock(liveDuration())}</div><div class="live-gold">${number(live.current_gold)} GOLD</div></div></div><div class="live-teams">${teams.map((team,index)=>`<section class="live-team ${index?'red':'blue'}"><h4>${index?'CZERWONA':'NIEBIESKA'} DRUŻYNA</h4>${live.players.filter(p=>p.team===team).map(p=>{const active=p.riot_id.toLowerCase()===live.active_riot_id.toLowerCase();return `<div class="live-stat-player ${active?'target':''}"><img class="live-champion" src="${asset('champion',p.champion)}" alt=""><div class="live-player-name"><strong>${esc(p.riot_id)}${active?' · TY':''}</strong><small>${esc(p.champion)} · ${esc(p.position||'Pozycja nieznana')} · lvl ${p.level}</small></div><div class="live-score"><strong>${p.kills} / ${p.deaths} / ${p.assists}</strong><small>${p.cs} CS · ${p.vision} vision</small></div><div class="live-items">${p.items.map(id=>`<img src="${asset('item',id)}" data-item-id="${id}" alt="">`).join('')}</div>${p.is_dead?`<span class="dead-badge">Odrodzenie: ${p.respawn}s</span>`:''}</div>`}).join('')}</section>`).join('')}</div>`;
 }
 
 async function refreshLocalLiveStats(){
@@ -149,6 +149,28 @@ const chartTooltip=document.createElement('div');
 chartTooltip.className='chart-tooltip hidden';
 document.body.appendChild(chartTooltip);
 
+const itemTooltip=document.createElement('div');
+itemTooltip.className='item-tooltip hidden';
+document.body.appendChild(itemTooltip);
+let activeItemId='';
+
+function showItemTooltip(event,itemId){
+  const item=state.itemMap[String(itemId)];
+  if(activeItemId!==String(itemId)){
+    activeItemId=String(itemId);
+    itemTooltip.innerHTML=item?`<div class="item-tooltip-head"><img src="${asset('item',itemId)}" alt=""><div><strong>${esc(item.name)}</strong><span>Item #${esc(itemId)}</span></div></div><p>${esc(item.description||item.plaintext||'Brak opisu dla tego itemu.')}</p><div class="item-gold"><span>${item.purchasable?`Koszt: ${number(item.total)} gold`:'Niedostępny w sklepie'}</span><span>Sprzedaż: ${number(item.sell)} gold</span></div>`:`<div class="item-tooltip-head"><img src="${asset('item',itemId)}" alt=""><div><strong>Nieznany item</strong><span>Item #${esc(itemId)}</span></div></div><p>Brak danych w aktualnej wersji Data Dragon. Item mógł zostać usunięty z gry.</p>`;
+  }
+  itemTooltip.classList.remove('hidden');
+  const gap=16,tip=itemTooltip.getBoundingClientRect();
+  itemTooltip.style.left=`${Math.max(gap,Math.min(window.innerWidth-tip.width-gap,event.clientX+gap))}px`;
+  itemTooltip.style.top=`${Math.max(gap,Math.min(window.innerHeight-tip.height-gap,event.clientY+gap))}px`;
+}
+
+document.addEventListener('mousemove',event=>{
+  const image=event.target.closest?.('img[data-item-id]');
+  if(image){showItemTooltip(event,image.dataset.itemId)}else{itemTooltip.classList.add('hidden');activeItemId=''}
+});
+
 function chartPointAt(event){
   const canvas=$('kdaChart'),rect=canvas.getBoundingClientRect();
   const x=(event.clientX-rect.left)*(canvas.width/(window.devicePixelRatio||1))/rect.width;
@@ -211,7 +233,7 @@ function openChampionDetails(champion){
 
 async function openDetails(match){
   const teams=[...new Set(match.participants.map(p=>p.team_id))].slice(0,2);
-  $('modalContent').innerHTML=`<div class="modal-title"><div class="eyebrow">${esc(match.result.toUpperCase())}</div><h2>${esc(match.champion)} · ${match.kills} / ${match.deaths} / ${match.assists}</h2><p>${esc(match.queue)} · ${esc(match.duration)} · ${esc(match.date)}</p></div><div class="teams">${teams.map((id,i)=>{const players=match.participants.filter(p=>p.team_id===id),won=players[0]?.win;return `<section class="team"><h4 style="color:${won?'#35d6a2':'#ff6382'}">DRUŻYNA ${i+1} · ${won?'ZWYCIĘSTWO':'PORAŻKA'}</h4>${players.map(p=>`<div class="participant"><img src="${asset('champion',p.champion)}"><div><strong>${esc(p.riot_id)}</strong><small>${esc(p.champion)} · ${p.kills}/${p.deaths}/${p.assists} · ${p.cs} CS · ${number(p.damage)} DMG</small><span class="participant-rank" data-rank-puuid="${esc(p.puuid||'')}">${p.puuid?'Pobieranie aktualnej rangi…':'Ranga niedostępna'}</span></div><div class="items">${p.items.map(id=>`<img src="${asset('item',id)}">`).join('')}</div></div>`).join('')}</section>`}).join('')}</div>`;
+  $('modalContent').innerHTML=`<div class="modal-title"><div class="eyebrow">${esc(match.result.toUpperCase())}</div><h2>${esc(match.champion)} · ${match.kills} / ${match.deaths} / ${match.assists}</h2><p>${esc(match.queue)} · ${esc(match.duration)} · ${esc(match.date)}</p></div><div class="teams">${teams.map((id,i)=>{const players=match.participants.filter(p=>p.team_id===id),won=players[0]?.win;return `<section class="team"><h4 style="color:${won?'#35d6a2':'#ff6382'}">DRUŻYNA ${i+1} · ${won?'ZWYCIĘSTWO':'PORAŻKA'}</h4>${players.map(p=>`<div class="participant"><img src="${asset('champion',p.champion)}"><div><strong>${esc(p.riot_id)}</strong><small>${esc(p.champion)} · ${p.kills}/${p.deaths}/${p.assists} · ${p.cs} CS · ${number(p.damage)} DMG</small><span class="participant-rank" data-rank-puuid="${esc(p.puuid||'')}">${p.puuid?'Pobieranie aktualnej rangi…':'Ranga niedostępna'}</span></div><div class="items">${p.items.map(id=>`<img src="${asset('item',id)}" data-item-id="${id}">`).join('')}</div></div>`).join('')}</section>`}).join('')}</div>`;
   $('modal').classList.remove('hidden');
   const puuids=match.participants.map(p=>p.puuid).filter(Boolean);
   if(!puuids.length)return;

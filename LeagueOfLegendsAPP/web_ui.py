@@ -67,11 +67,15 @@ class AppBridge:
             except Exception:
                 version = None
                 champion_map = {}
+            try:
+                item_map = DataDragonAssets.get_item_map()
+            except Exception:
+                item_map = {}
         except RiotApiError as error:
             return {"ok": False, "error": str(error)}
         except (KeyError, TypeError, ValueError):
             return {"ok": False, "error": "Riot API zwróciło nieoczekiwane dane."}
-        return {"ok": True, "player": asdict(player), "ddragon_version": version, "champion_map": champion_map}
+        return {"ok": True, "player": asdict(player), "ddragon_version": version, "champion_map": champion_map, "item_map": item_map}
 
     def refresh_live_game(self) -> dict:
         if self.live_client is None or not self.live_puuid:
