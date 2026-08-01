@@ -100,6 +100,27 @@ class AppBridge:
             "ranks": {puuid: self.rank_cache.get(puuid, []) for puuid in unique},
         }
 
+    def compare_player(
+        self, riot_id: str, region_name: str, api_key: str, match_count: int = 20
+    ) -> dict:
+        riot_id, api_key = riot_id.strip(), api_key.strip()
+        if "#" not in riot_id:
+            return {"ok": False, "error": "Wpisz drugie Riot ID w formacie Nazwa#TAG."}
+        if region_name not in REGIONS or not api_key:
+            return {"ok": False, "error": "Sprawdź region i klucz Riot API."}
+        game_name, tag_line = (part.strip() for part in riot_id.rsplit("#", 1))
+        platform, regional = REGIONS[region_name]
+        try:
+            player = RiotApiClient(api_key, platform, regional).load_player(
+                game_name, tag_line, min(30, max(10, int(match_count))),
+                include_live=False,
+            )
+        except RiotApiError as error:
+            return {"ok": False, "error": str(error)}
+        except (KeyError, TypeError, ValueError):
+            return {"ok": False, "error": "Riot API zwróciło nieoczekiwane dane."}
+        return {"ok": True, "player": asdict(player)}
+
     def toggle_favorite(self, riot_id: str, region: str) -> dict:
         favorites = self.store.load()
         target = next(

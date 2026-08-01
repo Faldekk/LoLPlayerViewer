@@ -60,7 +60,8 @@ class RiotApiClient:
         return urllib.parse.quote(value, safe="")
 
     def load_player(
-        self, game_name: str, tag_line: str, match_count: int = 30
+        self, game_name: str, tag_line: str, match_count: int = 30,
+        include_live: bool = True,
     ) -> PlayerData:
         account = self._get(
             self.regional,
@@ -100,7 +101,7 @@ class RiotApiClient:
             matches=matches,
             profile_icon_id=int(summoner.get("profileIconId", 0)) if isinstance(summoner, dict) else 0,
             puuid=puuid,
-            live_game=self.load_live_game(puuid),
+            live_game=self.load_live_game(puuid) if include_live else None,
         )
 
     def load_live_game(self, puuid: str) -> dict | None:
@@ -165,6 +166,9 @@ class RiotApiClient:
             "damage": int(participant.get("totalDamageDealtToChampions", 0)),
             "gold": int(participant.get("goldEarned", 0)),
             "vision": int(participant.get("visionScore", 0)),
+            "position": participant.get("teamPosition")
+            or participant.get("individualPosition")
+            or "UNKNOWN",
             "queue": QUEUE_NAMES.get(
                 info.get("queueId"), f"Kolejka {info.get('queueId', '?')}"
             ),
@@ -199,6 +203,9 @@ class RiotApiClient:
             "gold": int(participant.get("goldEarned", 0)),
             "damage": int(participant.get("totalDamageDealtToChampions", 0)),
             "vision": int(participant.get("visionScore", 0)),
+            "position": participant.get("teamPosition")
+            or participant.get("individualPosition")
+            or "UNKNOWN",
             "team_id": int(participant.get("teamId", 0)),
             "win": bool(participant.get("win")),
             "items": [

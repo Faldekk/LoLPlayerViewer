@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="chart-tooltip.css">
   <link rel="stylesheet" href="live-game.css">
+  <link rel="stylesheet" href="features.css">
 </head>
 <body>
   <div class="app-shell">
@@ -17,6 +18,8 @@
         <button class="nav-item" data-tab="ranked"><span>⌁</span>Ranked</button>
         <button class="nav-item" data-tab="stats"><span>◈</span>Statystyki</button>
         <button class="nav-item" data-tab="live"><span>●</span>Live Game</button>
+        <button class="nav-item" data-tab="compare"><span>⇄</span>Porównaj</button>
+        <button class="nav-item" data-tab="settings"><span>⚙</span>Ustawienia</button>
       </nav>
       <div class="sidebar-bottom"><span class="status-dot"></span> Riot API</div>
     </aside>
@@ -68,7 +71,7 @@
         </section>
 
         <section id="ranked" class="view">
-          <div class="toolbar"><div><h3>Analiza ranked</h3><p>KDA w kolejnych grach Solo/Duo i Flex</p></div><div id="rankedSummary" class="summary-pill"></div></div>
+          <div class="toolbar"><div><h3>Analiza ranked</h3><p>Forma w kolejnych grach Solo/Duo i Flex</p></div><div class="chart-controls"><select id="chartMetric"><option value="kda">KDA</option><option value="csmin">CS / min</option><option value="damage">Obrażenia</option><option value="vision">Vision</option><option value="winrate">Kroczący win rate</option></select><div id="rankedSummary" class="summary-pill"></div></div></div>
           <div class="chart-card"><canvas id="kdaChart"></canvas></div>
         </section>
 
@@ -80,6 +83,7 @@
             <article><span>OBRAŻENIA</span><strong id="metricDamage">—</strong></article>
           </div>
           <div class="champion-card"><div class="toolbar"><div><h3>Champion pool</h3><p>Najczęściej wybierani bohaterowie</p></div></div><div id="championStats"></div></div>
+          <div class="analysis-split"><div class="champion-card"><div class="toolbar"><div><h3>Pozycje</h3><p>Skuteczność na każdej roli</p></div></div><div id="roleStats"></div></div><div class="champion-card"><div class="toolbar"><div><h3>Aktualna forma</h3><p>Serie i ostatnie wyniki</p></div></div><div id="formStats"></div></div></div>
         </section>
 
         <section id="live" class="view">
@@ -88,6 +92,25 @@
             <button id="refreshLiveBtn" class="live-refresh">Odśwież</button>
           </div>
           <div id="liveGameContent"></div>
+        </section>
+
+        <section id="compare" class="view">
+          <div class="toolbar"><div><h3>Porównanie graczy</h3><p>Zestaw rangę, formę i champion pool</p></div></div>
+          <div class="compare-search"><input id="compareRiotId" placeholder="Drugie Riot ID, np. Faker#KR1"><button id="compareBtn" class="primary-btn">Porównaj</button></div>
+          <div id="compareContent" class="compare-empty">Wyszukaj główny profil, a następnie wpisz drugie Riot ID.</div>
+        </section>
+
+        <section id="settings" class="view">
+          <div class="toolbar"><div><h3>Ustawienia</h3><p>Wygląd i domyślne zachowanie aplikacji</p></div></div>
+          <div class="settings-grid">
+            <label><span>MOTYW</span><select id="settingTheme"><option value="dark">Ciemny</option><option value="light">Jasny</option></select></label>
+            <label><span>KOLOR AKCENTU</span><select id="settingAccent"><option value="purple">Fioletowy</option><option value="blue">Niebieski</option><option value="green">Zielony</option></select></label>
+            <label><span>DOMYŚLNY REGION</span><select id="settingRegion"></select></label>
+            <label><span>DOMYŚLNA LICZBA MECZÓW</span><select id="settingMatches"><option>10</option><option>20</option><option>30</option><option>50</option></select></label>
+            <label><span>LIVE REFRESH</span><select id="settingLiveRefresh"><option value="3">3 sekundy</option><option value="5">5 sekund</option><option value="10">10 sekund</option><option value="30">30 sekund</option></select></label>
+            <label class="toggle-setting"><input id="settingCompact" type="checkbox"><span>Kompaktowa historia meczów</span></label>
+          </div>
+          <button id="saveSettingsBtn" class="primary-btn settings-save">Zapisz ustawienia</button>
         </section>
       </div>
     </main>

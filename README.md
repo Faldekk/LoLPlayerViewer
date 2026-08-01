@@ -29,6 +29,15 @@ Zakładka Live Game pokazuje aktywny mecz wyszukanego gracza: obie drużyny, cha
 
 Jeśli LoL działa na tym samym komputerze i wyszukane Riot ID należy do aktywnego gracza, aplikacja używa lokalnego Live Client Data API. Pokazuje wtedy aktualne K/D/A, CS, vision, poziomy, itemy, czas odrodzenia i bieżący gold, odświeżając dane co 5 sekund.
 
+### Rozszerzone analizy
+
+- analiza skuteczności na pozycjach Top, Jungle, Mid, ADC i Support,
+- porównanie dwóch graczy: ranga, win rate, KDA, CS/min, obrażenia i champion pool,
+- wykres z metrykami KDA, CS/min, obrażenia, vision i kroczący win rate,
+- szczegółowa karta każdego championa po kliknięciu w Champion Pool,
+- wykrywanie serii zwycięstw lub porażek oraz wizualizacja ostatnich 10 wyników,
+- trwałe ustawienia motywu, koloru akcentu, regionu, liczby meczów i live refresh.
+
 ## Wymagania
 
 - Windows 10 lub Windows 11,

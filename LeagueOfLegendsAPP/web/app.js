@@ -1,5 +1,7 @@
 const $ = id => document.getElementById(id);
-const state = { player: null, matches: [], version: null, favorites: [], region: '', chartPoints: [], championMap: {}, liveFetchedAt: 0, localLive: null, localFetchedAt: 0 };
+const defaultSettings={theme:'dark',accent:'purple',region:'Europa Pn.-Wsch. (EUNE)',matches:'30',liveRefresh:'5',compact:false};
+const savedSettings=(()=>{try{return {...defaultSettings,...JSON.parse(localStorage.getItem('lpvSettings')||'{}')}}catch{return {...defaultSettings}}})();
+const state = { player: null, matches: [], version: null, favorites: [], region: '', chartPoints: [], championMap: {}, liveFetchedAt: 0, localLive: null, localFetchedAt: 0, settings:savedSettings };
 const queueGroups = { Ranked:[420,440], Normal:[400,430,490], ARAM:[450], Arena:[1700,1750] };
 const spellNames = {1:'SummonerBoost',3:'SummonerExhaust',4:'SummonerFlash',6:'SummonerHaste',7:'SummonerHeal',11:'SummonerSmite',12:'SummonerTeleport',14:'SummonerDot',21:'SummonerBarrier',32:'SummonerSnowball'};
 const esc = value => String(value ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
@@ -8,9 +10,10 @@ const asset = (type,id) => state.version ? `https://ddragon.leagueoflegends.com/
 
 window.addEventListener('pywebviewready', async () => {
   const data = await window.pywebview.api.bootstrap();
-  data.regions.forEach(region => $('region').add(new Option(region, region)));
+  data.regions.forEach(region => {$('region').add(new Option(region,region));$('settingRegion').add(new Option(region,region))});
   state.favorites = data.favorites;
   if(data.api_key)$('apiKey').value=data.api_key;
+  applySettings();
   renderFavorites();
 });
 
@@ -20,6 +23,10 @@ $('modalClose').addEventListener('click', () => $('modal').classList.add('hidden
 $('modal').addEventListener('click', event => { if (event.target === $('modal')) $('modal').classList.add('hidden'); });
 $('favoriteBtn').addEventListener('click', toggleFavorite);
 $('refreshLiveBtn').addEventListener('click', async()=>{await refreshLiveGame();await refreshLocalLiveStats()});
+$('chartMetric').addEventListener('change',renderChart);
+$('compareBtn').addEventListener('click',comparePlayers);
+$('compareRiotId').addEventListener('keydown',event=>{if(event.key==='Enter')comparePlayers()});
+$('saveSettingsBtn').addEventListener('click',saveSettings);
 ['queueFilter','resultFilter','championFilter'].forEach(id => $(id).addEventListener(id==='championFilter'?'input':'change', renderHistory));
 document.querySelectorAll('.nav-item').forEach(button => button.addEventListener('click', () => showTab(button.dataset.tab)));
 $('favoritesSelect').addEventListener('change', () => {
@@ -43,6 +50,7 @@ async function search(){
 
 function renderDashboard(){
   $('emptyState').classList.add('hidden'); $('dashboard').classList.remove('hidden');
+  document.querySelector('.profile-strip').classList.remove('hidden');
   $('playerName').textContent=state.player.riot_id; $('playerLevel').textContent=`Poziom ${state.player.level}`;
   $('profileIcon').src=asset('profileicon',state.player.profile_icon_id);
   renderRank('RANKED_SOLO_5x5','solo'); renderRank('RANKED_FLEX_SR','flex');
@@ -124,12 +132,15 @@ function renderChart(){
   const ctx=canvas.getContext('2d'); ctx.scale(scale,scale); ctx.clearRect(0,0,w,h);
   state.chartPoints=[];
   if(!matches.length){ctx.fillStyle='#8e98b3';ctx.font='14px Segoe UI';ctx.fillText('Brak gier rankingowych w pobranym zestawie.',25,40);hideChartTooltip();return;}
-  const values=matches.map(kda),max=Math.max(4,...values)*1.12,pad={l:42,r:20,t:28,b:38},cw=w-pad.l-pad.r,ch=h-pad.t-pad.b;
+  const metric=$('chartMetric').value;
+  const calculators={kda:m=>kda(m),csmin:m=>m.duration_seconds?m.cs/(m.duration_seconds/60):0,damage:m=>m.damage||0,vision:m=>m.vision||0};
+  const values=metric==='winrate'?matches.map((_,i)=>matches.slice(0,i+1).filter(m=>m.result==='Wygrana').length/(i+1)*100):matches.map(calculators[metric]||calculators.kda);
+  const minimum=metric==='winrate'?100:metric==='damage'?1000:4,max=Math.max(minimum,...values)*1.12,pad={l:52,r:20,t:28,b:38},cw=w-pad.l-pad.r,ch=h-pad.t-pad.b;
   ctx.strokeStyle='#272f48';ctx.fillStyle='#8e98b3';ctx.font='11px Segoe UI';ctx.lineWidth=1;
-  for(let i=0;i<=4;i++){const y=pad.t+ch*i/4;ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(w-pad.r,y);ctx.stroke();ctx.fillText((max*(1-i/4)).toFixed(1),4,y+4)}
+  for(let i=0;i<=4;i++){const y=pad.t+ch*i/4,value=max*(1-i/4);ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(w-pad.r,y);ctx.stroke();ctx.fillText(metric==='damage'?Math.round(value/1000)+'k':value.toFixed(metric==='winrate'?0:1),4,y+4)}
   const point=(v,i)=>({x:pad.l+(matches.length===1?cw/2:cw*i/(matches.length-1)),y:pad.t+ch*(1-v/max)});
-  ctx.strokeStyle='#806cff';ctx.lineWidth=3;ctx.beginPath();values.forEach((v,i)=>{const p=point(v,i);i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y)});ctx.stroke();
-  state.chartPoints=values.map((v,i)=>({...point(v,i),match:matches[i]}));
+  ctx.strokeStyle=getComputedStyle(document.body).getPropertyValue('--purple').trim()||'#806cff';ctx.lineWidth=3;ctx.beginPath();values.forEach((v,i)=>{const p=point(v,i);i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y)});ctx.stroke();
+  state.chartPoints=values.map((v,i)=>({...point(v,i),match:matches[i],metricValue:v,metric}));
   state.chartPoints.forEach(({x,y,match})=>{ctx.fillStyle=match.result==='Wygrana'?'#35d6a2':'#ff6382';ctx.beginPath();ctx.arc(x,y,5,0,Math.PI*2);ctx.fill()});
   const wins=matches.filter(m=>m.result==='Wygrana').length;$('rankedSummary').textContent=`${wins} W · ${matches.length-wins} L · ${Math.round(wins/matches.length*100)}% WR`;
 }
@@ -147,9 +158,11 @@ function chartPointAt(event){
   return distance<=14?nearest:null;
 }
 
-function showChartTooltip(event,match){
+function showChartTooltip(event,match,point){
   const won=match.result==='Wygrana';
-  chartTooltip.innerHTML=`<div class="tooltip-head"><img src="${asset('champion',match.champion)}" alt=""><div><strong>${esc(match.champion)}</strong><span class="${won?'tooltip-win':'tooltip-loss'}">${esc(match.result)}</span></div></div><div class="tooltip-kda">${match.kills} / ${match.deaths} / ${match.assists} <span>${kda(match).toFixed(2)} KDA</span></div><div class="tooltip-stats"><span>${match.cs||0} CS</span><span>${number(match.damage)} DMG</span></div><div class="tooltip-meta">${esc(match.queue)} · ${esc(match.duration)}<br>${esc(match.date)}</div><div class="tooltip-hint">Kliknij, aby zobaczyć szczegóły</div>`;
+  const metricLabels={kda:'KDA',csmin:'CS/min',damage:'Obrażenia',vision:'Vision',winrate:'Win rate'};
+  const metricValue=point.metric==='damage'?number(Math.round(point.metricValue)):point.metric==='winrate'?`${Math.round(point.metricValue)}%`:point.metricValue.toFixed(2);
+  chartTooltip.innerHTML=`<div class="tooltip-head"><img src="${asset('champion',match.champion)}" alt=""><div><strong>${esc(match.champion)}</strong><span class="${won?'tooltip-win':'tooltip-loss'}">${esc(match.result)}</span></div></div><div class="tooltip-kda">${metricLabels[point.metric]} <span>${metricValue}</span></div><div class="tooltip-stats"><span>${match.kills}/${match.deaths}/${match.assists}</span><span>${match.cs||0} CS</span></div><div class="tooltip-meta">${esc(match.queue)} · ${esc(match.duration)}<br>${esc(match.date)}</div><div class="tooltip-hint">Kliknij, aby zobaczyć szczegóły</div>`;
   chartTooltip.classList.remove('hidden');
   const gap=16,tip=chartTooltip.getBoundingClientRect();
   chartTooltip.style.left=`${Math.min(window.innerWidth-tip.width-gap,event.clientX+gap)}px`;
@@ -161,7 +174,7 @@ function hideChartTooltip(){chartTooltip.classList.add('hidden')}
 $('kdaChart').addEventListener('mousemove',event=>{
   const point=chartPointAt(event);
   $('kdaChart').style.cursor=point?'pointer':'default';
-  point?showChartTooltip(event,point.match):hideChartTooltip();
+  point?showChartTooltip(event,point.match,point):hideChartTooltip();
 });
 $('kdaChart').addEventListener('mouseleave',hideChartTooltip);
 $('kdaChart').addEventListener('click',event=>{const point=chartPointAt(event);if(point)openDetails(point.match)});
@@ -172,7 +185,28 @@ function renderStats(){
   $('metricWinrate').textContent=`${Math.round(wins/games*100)||0}%`;$('metricKda').textContent=avg(kda).toFixed(2);
   $('metricCs').textContent=avg(m=>(m.duration_seconds?m.cs/(m.duration_seconds/60):0)).toFixed(1);$('metricDamage').textContent=number(Math.round(avg(m=>m.damage||0)));
   const champs={};state.matches.forEach(m=>{const s=champs[m.champion]??={games:0,wins:0,kills:0,deaths:0,assists:0};s.games++;s.wins+=m.result==='Wygrana';s.kills+=m.kills;s.deaths+=m.deaths;s.assists+=m.assists});
-  $('championStats').innerHTML=Object.entries(champs).sort((a,b)=>b[1].games-a[1].games).slice(0,10).map(([name,s])=>`<div class="champ-stat"><span class="champ-main"><img src="${asset('champion',name)}">${esc(name)}</span><span>${s.games} gier</span><span>${s.wins} W / ${s.games-s.wins} L</span><span>${Math.round(s.wins/s.games*100)}% WR</span><span>${((s.kills+s.assists)/Math.max(1,s.deaths)).toFixed(2)} KDA</span></div>`).join('');
+  $('championStats').innerHTML=Object.entries(champs).sort((a,b)=>b[1].games-a[1].games).slice(0,10).map(([name,s])=>`<div class="champ-stat" data-champion="${esc(name)}"><span class="champ-main"><img src="${asset('champion',name)}">${esc(name)}</span><span>${s.games} gier</span><span>${s.wins} W / ${s.games-s.wins} L</span><span>${Math.round(s.wins/s.games*100)}% WR</span><span>${((s.kills+s.assists)/Math.max(1,s.deaths)).toFixed(2)} KDA</span></div>`).join('');
+  document.querySelectorAll('[data-champion]').forEach(row=>row.addEventListener('click',()=>openChampionDetails(row.dataset.champion)));
+  renderRoleStats();renderFormStats();
+}
+
+function renderRoleStats(){
+  const labels={TOP:'Top',JUNGLE:'Jungle',MIDDLE:'Mid',BOTTOM:'ADC',UTILITY:'Support',UNKNOWN:'Nieznana'};
+  const roles={};state.matches.forEach(m=>{const key=m.position||'UNKNOWN',s=roles[key]??={games:0,wins:0,kda:0};s.games++;s.wins+=m.result==='Wygrana';s.kda+=kda(m)});
+  $('roleStats').innerHTML=Object.entries(roles).sort((a,b)=>b[1].games-a[1].games).map(([role,s])=>`<div class="role-row"><strong>${labels[role]||role}</strong><span>${s.games} gier</span><span>${Math.round(s.wins/s.games*100)}% WR</span><span>${(s.kda/s.games).toFixed(2)} KDA</span></div>`).join('')||'<span class="subtext">Brak danych o pozycjach.</span>';
+}
+
+function renderFormStats(){
+  if(!state.matches.length){$('formStats').innerHTML='<span class="subtext">Brak meczów do analizy.</span>';return;}
+  const first=state.matches[0]?.result,current=state.matches.findIndex(m=>m.result!==first),streak=current<0?state.matches.length:current;
+  const last10=state.matches.slice(0,10),wins=last10.filter(m=>m.result==='Wygrana').length;
+  $('formStats').innerHTML=`<div class="form-hero"><strong>${streak} ${first==='Wygrana'?'zwycięstwa':'porażki'} z rzędu</strong><span>Ostatnie ${last10.length} gier: ${wins} W / ${last10.length-wins} L · ${last10.length?Math.round(wins/last10.length*100):0}% WR</span></div><div class="form-sequence">${[...last10].reverse().map(m=>`<span class="form-dot ${m.result==='Wygrana'?'win':'loss'}" title="${esc(m.champion)}">${m.result==='Wygrana'?'W':'L'}</span>`).join('')}</div>`;
+}
+
+function openChampionDetails(champion){
+  const games=state.matches.filter(m=>m.champion===champion),wins=games.filter(m=>m.result==='Wygrana').length,avg=fn=>games.reduce((s,m)=>s+fn(m),0)/Math.max(1,games.length);
+  $('modalContent').innerHTML=`<div class="modal-title"><div class="eyebrow">CHAMPION ANALYSIS</div><h2>${esc(champion)}</h2><p>${games.length} gier w pobranej historii</p></div><div class="champion-detail-grid"><article><span>WIN RATE</span><strong>${Math.round(wins/games.length*100)}%</strong></article><article><span>ŚREDNIE KDA</span><strong>${avg(kda).toFixed(2)}</strong></article><article><span>CS / MIN</span><strong>${avg(m=>m.duration_seconds?m.cs/(m.duration_seconds/60):0).toFixed(1)}</strong></article><article><span>DMG / MIN</span><strong>${number(Math.round(avg(m=>m.duration_seconds?m.damage/(m.duration_seconds/60):0)))}</strong></article></div><div class="match-list">${games.map(m=>`<div class="match-row ${m.result==='Wygrana'?'win':'loss'}"><div class="result-bar"></div><img class="champ-icon" src="${asset('champion',champion)}"><div class="result">${esc(m.result)}</div><div><strong>${m.kills}/${m.deaths}/${m.assists}</strong><div class="subtext">${m.cs} CS · ${number(m.damage)} DMG</div></div><div class="kda">${kda(m).toFixed(2)} KDA</div><div class="queue">${esc(m.queue)}</div><div class="date">${esc(m.date)}</div></div>`).join('')}</div>`;
+  $('modal').classList.remove('hidden');
 }
 
 async function openDetails(match){
@@ -194,13 +228,56 @@ function formatRanks(ranks){
   return [solo&&`Solo: ${format(solo)}`,flex&&`Flex: ${format(flex)}`].filter(Boolean).join(' · ');
 }
 
+function playerSummary(player){
+  const games=player.matches||[],wins=games.filter(m=>m.result==='Wygrana').length;
+  const avg=fn=>games.length?games.reduce((s,m)=>s+fn(m),0)/games.length:0;
+  const solo=player.ranks.find(r=>r.queueType==='RANKED_SOLO_5x5');
+  const champions={};games.forEach(m=>champions[m.champion]=(champions[m.champion]||0)+1);
+  return {games,wins,wr:games.length?Math.round(wins/games.length*100):0,kda:avg(kda).toFixed(2),cs:avg(m=>m.duration_seconds?m.cs/(m.duration_seconds/60):0).toFixed(1),damage:Math.round(avg(m=>m.damage||0)),rank:solo?`${title(solo.tier)} ${solo.rank} · ${solo.leaguePoints} LP`:'Unranked',champions:Object.entries(champions).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([name])=>name)};
+}
+
+function compareCard(player){
+  const s=playerSummary(player);
+  return `<article class="compare-player"><div class="eyebrow">GRACZ</div><h2>${esc(player.riot_id)}</h2><div class="compare-metric"><span>Solo/Duo</span><strong>${esc(s.rank)}</strong></div><div class="compare-metric"><span>Win rate (${s.games} gier)</span><strong>${s.wr}%</strong></div><div class="compare-metric"><span>Średnie KDA</span><strong>${s.kda}</strong></div><div class="compare-metric"><span>CS / min</span><strong>${s.cs}</strong></div><div class="compare-metric"><span>Średnie obrażenia</span><strong>${number(s.damage)}</strong></div><div class="compare-champs">${s.champions.map(name=>`<img src="${asset('champion',name)}" title="${esc(name)}">`).join('')}</div></article>`;
+}
+
+async function comparePlayers(){
+  if(!state.player){$('compareContent').textContent='Najpierw wyszukaj główny profil gracza.';return;}
+  const riotId=$('compareRiotId').value.trim();if(!riotId)return;
+  const button=$('compareBtn');button.disabled=true;button.textContent='Pobieranie…';
+  try{const result=await window.pywebview.api.compare_player(riotId,state.region,$('apiKey').value,20);if(!result.ok){showError(result.error);return}$('compareContent').className='compare-grid';$('compareContent').innerHTML=`${compareCard(state.player)}<div class="compare-vs">VS</div>${compareCard(result.player)}`;}
+  catch(error){showError(`Nie udało się porównać graczy: ${error}`)}finally{button.disabled=false;button.textContent='Porównaj'}
+}
+
+function applySettings(){
+  const s=state.settings;
+  document.body.classList.toggle('light-theme',s.theme==='light');
+  document.body.classList.toggle('accent-blue',s.accent==='blue');
+  document.body.classList.toggle('accent-green',s.accent==='green');
+  document.body.classList.toggle('compact-history',Boolean(s.compact));
+  $('settingTheme').value=s.theme;$('settingAccent').value=s.accent;$('settingRegion').value=s.region;$('settingMatches').value=s.matches;$('settingLiveRefresh').value=s.liveRefresh;$('settingCompact').checked=Boolean(s.compact);
+  if([...$('region').options].some(o=>o.value===s.region))$('region').value=s.region;
+  $('matchCount').value=s.matches;
+}
+
+function saveSettings(){
+  state.settings={theme:$('settingTheme').value,accent:$('settingAccent').value,region:$('settingRegion').value,matches:$('settingMatches').value,liveRefresh:$('settingLiveRefresh').value,compact:$('settingCompact').checked};
+  localStorage.setItem('lpvSettings',JSON.stringify(state.settings));applySettings();
+  const button=$('saveSettingsBtn');button.textContent='Zapisano ✓';setTimeout(()=>button.textContent='Zapisz ustawienia',1400);
+}
+
 async function toggleFavorite(){
   if(!state.player)return;const result=await window.pywebview.api.toggle_favorite(state.player.riot_id,state.region);
   if(!result.ok){showError(result.error);return}state.favorites=result.favorites;renderFavorites();updateFavoriteButton();
 }
 function renderFavorites(){$('favoritesSelect').innerHTML='<option value="">'+(state.favorites.length?'Wybierz gracza…':'Brak zapisanych graczy')+'</option>'+state.favorites.map((f,i)=>`<option value="${i}">${esc(f.riot_id)} · ${esc(f.region)}</option>`).join('')}
 function updateFavoriteButton(){const saved=state.favorites.some(f=>f.riot_id.toLowerCase()===state.player.riot_id.toLowerCase()&&f.region===state.region);$('favoriteBtn').textContent=saved?'★ Usuń':'☆ Dodaj'}
-function showTab(id){document.querySelectorAll('.nav-item').forEach(b=>b.classList.toggle('active',b.dataset.tab===id));document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===id));if(id==='ranked')setTimeout(renderChart,50);if(id==='live'&&state.player){refreshLiveGame();refreshLocalLiveStats()}}
+function showTab(id){
+  if(!state.player&&!['settings','compare'].includes(id))return;
+  if(['settings','compare'].includes(id)){$('emptyState').classList.add('hidden');$('dashboard').classList.remove('hidden')}
+  document.querySelector('.profile-strip').classList.toggle('hidden',!state.player);
+  document.querySelectorAll('.nav-item').forEach(b=>b.classList.toggle('active',b.dataset.tab===id));document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===id));if(id==='ranked')setTimeout(renderChart,50);if(id==='live'&&state.player){refreshLiveGame();refreshLocalLiveStats()}
+}
 function showError(message){$('errorBox').textContent=message;$('errorBox').classList.remove('hidden')}
 function hideError(){$('errorBox').classList.add('hidden')}
 function kda(match){return (match.kills+match.assists)/Math.max(1,match.deaths)}
@@ -208,4 +285,5 @@ function title(value){const s=String(value||'').toLowerCase();return s.charAt(0)
 window.addEventListener('resize',()=>{if(state.player&&$('ranked').classList.contains('active'))renderChart()});
 setInterval(()=>{const clock=$('liveClock');if(clock)clock.textContent=formatClock(liveDuration())},1000);
 setInterval(()=>{if(state.player&&$('live').classList.contains('active'))refreshLiveGame()},60000);
-setInterval(()=>{if(state.player&&$('live').classList.contains('active'))refreshLocalLiveStats()},5000);
+async function pollLocalLive(){if(state.player&&$('live').classList.contains('active'))await refreshLocalLiveStats();setTimeout(pollLocalLive,Math.max(3,Number(state.settings.liveRefresh)||5)*1000)}
+pollLocalLive();
