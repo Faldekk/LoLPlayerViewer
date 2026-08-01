@@ -9,4 +9,4 @@ if not exist ".venv\Scripts\python.exe" (
     exit /b 1
 )
 
-start "LoL Player Viewer" ".venv\Scripts\pythonw.exe" ".\LeagueOfLegendsAPP\LeagueOfLegendsAPP.py"
+start "LoL Player Viewer" ".venv\Scripts\pythonw.exe" ".\LeagueOfLegendsAPP\web_ui.py"

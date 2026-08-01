@@ -1,6 +1,6 @@
 # LoL Player Viewer
 
-Desktopowa aplikacja napisana w Pythonie, która pobiera dane gracza z oficjalnego Riot Games API. Pozwala sprawdzić aktualną rangę, statystyki kolejek rankingowych oraz historię ostatnich meczów.
+Desktopowa aplikacja z backendem Python i nowoczesnym interfejsem HTML/CSS/JavaScript, która pobiera dane gracza z oficjalnego Riot Games API. Pozwala sprawdzić aktualną rangę, statystyki kolejek rankingowych oraz historię ostatnich meczów.
 
 ## Funkcje
 
@@ -16,7 +16,7 @@ Desktopowa aplikacja napisana w Pythonie, która pobiera dane gracza z oficjalne
 - bohater, K/D/A, tryb gry, czas trwania i data każdego meczu,
 - szczegóły meczu otwierane dwuklikiem,
 - składy obu drużyn, CS, obrażenia, gold, vision i komplet przedmiotów,
-- wykres Matplotlib dla meczów Solo/Duo i Flex,
+- interaktywny wykres KDA dla meczów Solo/Duo i Flex,
 - osobna analiza 30 gier: win rate, średnie KDA, CS/min, obrażenia i vision,
 - ranking najczęściej granych bohaterów z ich win rate i KDA,
 - oznaczenie zwycięstw i porażek kolorami,
@@ -27,6 +27,7 @@ Desktopowa aplikacja napisana w Pythonie, która pobiera dane gracza z oficjalne
 
 - Windows 10 lub Windows 11,
 - Python 3.10 lub nowszy,
+- Microsoft Edge WebView2 Runtime (standardowo obecny w Windows 10/11),
 - dostęp do internetu,
 - klucz z [Riot Developer Portal](https://developer.riotgames.com/).
 
@@ -62,16 +63,16 @@ python -m pip install -r .\requirements.txt
 Z aktywnym środowiskiem wykonaj:
 
 ```powershell
-python .\LeagueOfLegendsAPP\LeagueOfLegendsAPP.py
+python .\LeagueOfLegendsAPP\web_ui.py
 ```
 
 Można też uruchomić program bez aktywowania środowiska:
 
 ```powershell
-.\.venv\Scripts\python.exe .\LeagueOfLegendsAPP\LeagueOfLegendsAPP.py
+.\.venv\Scripts\python.exe .\LeagueOfLegendsAPP\web_ui.py
 ```
 
-Na Windows możesz również dwukrotnie kliknąć plik `Uruchom_LoL_Player_Viewer.cmd`. Skrypt zawsze wybierze projektowe środowisko `.venv`, w którym zainstalowany jest Matplotlib.
+Na Windows możesz również dwukrotnie kliknąć plik `Uruchom_LoL_Player_Viewer.cmd`. Skrypt zawsze wybierze projektowe środowisko `.venv` i uruchomi nowy interfejs WebView.
 
 W Visual Studio jako interpreter projektu wybierz:
 
@@ -79,7 +80,7 @@ W Visual Studio jako interpreter projektu wybierz:
 .venv\Scripts\python.exe
 ```
 
-Jeżeli Visual Studio uruchomi inny interpreter bez Matplotlib, aplikacja automatycznie przełączy się na lokalne środowisko `.venv`.
+W Visual Studio plik `web_ui.py` jest ustawiony jako domyślny plik startowy.
 
 ## Klucz Riot API
 
@@ -116,7 +117,9 @@ Pobranie 30 szczegółowych meczów może potrwać kilka–kilkanaście sekund. 
 ```text
 LoLPlayerViewer/
 ├── LeagueOfLegendsAPP/
-│   ├── LeagueOfLegendsAPP.py  # interfejs Tkinter
+│   ├── LeagueOfLegendsAPP.py  # starszy interfejs Tkinter (awaryjny)
+│   ├── web_ui.py              # most Python-JavaScript i domyślny start
+│   ├── web/                   # nowy interfejs HTML/CSS/JavaScript
 │   ├── riot_api.py            # komunikacja z Riot API
 │   ├── assets.py              # grafiki Data Dragon i cache
 │   ├── models.py              # modele danych

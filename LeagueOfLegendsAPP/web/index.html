@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LoL Player Viewer</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="logo"><span class="logo-mark">L</span><span>LPV</span></div>
+      <nav>
+        <button class="nav-item active" data-tab="history"><span>◫</span>Historia</button>
+        <button class="nav-item" data-tab="ranked"><span>⌁</span>Ranked</button>
+        <button class="nav-item" data-tab="stats"><span>◈</span>Statystyki</button>
+      </nav>
+      <div class="sidebar-bottom"><span class="status-dot"></span> Riot API</div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div><div class="eyebrow">PLAYER INSIGHTS</div><h1>LoL Player Viewer</h1></div>
+        <div class="favorite-picker">
+          <label>ULUBIENI</label>
+          <select id="favoritesSelect"><option value="">Brak zapisanych graczy</option></select>
+        </div>
+      </header>
+
+      <section class="search-panel">
+        <label><span>RIOT ID</span><input id="riotId" placeholder="Nazwa#TAG" autocomplete="off"></label>
+        <label><span>REGION</span><select id="region"></select></label>
+        <label class="key-field"><span>KLUCZ RIOT API</span><input id="apiKey" type="password" placeholder="RGAPI-••••••••"></label>
+        <label class="count-field"><span>MECZE</span><select id="matchCount"><option>10</option><option>20</option><option selected>30</option><option>50</option></select></label>
+        <button id="searchBtn" class="primary-btn">Wyszukaj</button>
+      </section>
+
+      <div id="errorBox" class="error-box hidden"></div>
+      <section id="emptyState" class="empty-state">
+        <div class="orb">◎</div><h2>Znajdź profil gracza</h2>
+        <p>Wprowadź Riot ID i zobacz formę, ranking oraz szczegóły ostatnich gier.</p>
+      </section>
+
+      <div id="dashboard" class="dashboard hidden">
+        <section class="profile-strip">
+          <div class="identity">
+            <img id="profileIcon" alt="" class="profile-icon">
+            <div><div class="section-label">GRACZ</div><h2 id="playerName"></h2><span id="playerLevel"></span></div>
+          </div>
+          <div class="rank-card"><div class="section-label">SOLO / DUO</div><strong id="soloRank">Bez rangi</strong><span id="soloStats">Brak gier</span></div>
+          <div class="rank-card"><div class="section-label">FLEX 5V5</div><strong id="flexRank">Bez rangi</strong><span id="flexStats">Brak gier</span></div>
+          <button id="favoriteBtn" class="favorite-btn">☆ Dodaj</button>
+        </section>
+
+        <section id="history" class="view active">
+          <div class="toolbar">
+            <div><h3>Historia meczów</h3><p>Wybierz grę, aby zobaczyć pełne statystyki</p></div>
+            <div class="filters">
+              <select id="queueFilter"><option>Wszystkie tryby</option><option>Ranked</option><option>Normal</option><option>ARAM</option><option>Arena</option></select>
+              <select id="resultFilter"><option>Wszystkie wyniki</option><option>Wygrane</option><option>Przegrane</option></select>
+              <input id="championFilter" placeholder="Bohater">
+            </div>
+          </div>
+          <div id="matchList" class="match-list"></div>
+        </section>
+
+        <section id="ranked" class="view">
+          <div class="toolbar"><div><h3>Analiza ranked</h3><p>KDA w kolejnych grach Solo/Duo i Flex</p></div><div id="rankedSummary" class="summary-pill"></div></div>
+          <div class="chart-card"><canvas id="kdaChart"></canvas></div>
+        </section>
+
+        <section id="stats" class="view">
+          <div class="metric-grid">
+            <article><span>WIN RATE</span><strong id="metricWinrate">—</strong></article>
+            <article><span>ŚREDNIE KDA</span><strong id="metricKda">—</strong></article>
+            <article><span>CS / MIN</span><strong id="metricCs">—</strong></article>
+            <article><span>OBRAŻENIA</span><strong id="metricDamage">—</strong></article>
+          </div>
+          <div class="champion-card"><div class="toolbar"><div><h3>Champion pool</h3><p>Najczęściej wybierani bohaterowie</p></div></div><div id="championStats"></div></div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <div id="loader" class="loader-overlay hidden"><div class="spinner"></div><strong>Pobieranie danych</strong><span>Analizujemy ostatnie mecze…</span></div>
+  <div id="modal" class="modal hidden"><div class="modal-card"><button id="modalClose" class="modal-close">×</button><div id="modalContent"></div></div></div>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>72902504-2a6d-4b33-a5fa-94075c4b6612</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>LeagueOfLegendsAPP.py</StartupFile>
+    <StartupFile>web_ui.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -27,6 +27,12 @@
     <Compile Include="models.py" />
     <Compile Include="riot_api.py" />
     <Compile Include="storage.py" />
+    <Compile Include="web_ui.py" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="web\index.html" />
+    <Content Include="web\styles.css" />
+    <Content Include="web\app.js" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in
