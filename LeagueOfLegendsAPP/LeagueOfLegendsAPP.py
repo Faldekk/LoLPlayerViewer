@@ -286,10 +286,20 @@ class LolApp(tk.Tk):
         search.columnconfigure(2, weight=2)
         self.riot_entry.bind("<Return>", lambda _event: self.search())
 
-        cards = ttk.Frame(outer)
-        cards.pack(fill="x", pady=(0, 16))
+        content = ttk.Frame(outer)
+        content.pack(fill="both", expand=True)
+        content.columnconfigure(0, weight=4)
+        content.columnconfigure(1, weight=1, minsize=285)
+        content.rowconfigure(0, weight=1)
+
+        cards = ttk.Frame(content)
+        cards.grid(row=0, column=1, sticky="nsew", padx=(16, 0))
+        cards.columnconfigure(0, weight=1)
+        for row in range(3):
+            cards.rowconfigure(row, weight=1, uniform="profile_cards")
+
         profile = ttk.Frame(cards, style="Card.TFrame", padding=16)
-        profile.grid(row=0, column=0, sticky="nsew", padx=(0, 6))
+        profile.grid(row=0, column=0, sticky="nsew", pady=(0, 6))
         ttk.Label(profile, text="GRACZ", style="CardLabel.TLabel").pack(anchor="w")
         self.player_label = ttk.Label(profile, text="Wyszukaj gracza", style="CardTitle.TLabel")
         self.player_label.pack(anchor="w", pady=(5, 0))
@@ -301,7 +311,10 @@ class LolApp(tk.Tk):
         self.rank_labels = []
         for index in range(2):
             card = ttk.Frame(cards, style="Card.TFrame", padding=16)
-            card.grid(row=0, column=index + 1, sticky="nsew", padx=(6, 0) if index else 6)
+            card.grid(
+                row=index + 1, column=0, sticky="nsew",
+                pady=(6, 0) if index else 6,
+            )
             queue_label = "SOLO / DUO" if index == 0 else "FLEX 5V5"
             ttk.Label(card, text=queue_label, style="CardLabel.TLabel").pack(anchor="w")
             title = ttk.Label(card, text="Bez danych", style="CardTitle.TLabel")
@@ -309,15 +322,13 @@ class LolApp(tk.Tk):
             details = ttk.Label(card, text="Brak rozegranych gier", style="CardMuted.TLabel")
             details.pack(anchor="w", pady=(3, 0))
             self.rank_labels.append((title, details))
-        for index in range(3):
-            cards.columnconfigure(index, weight=1, uniform="cards")
 
-        notebook = ttk.Notebook(outer)
-        notebook.pack(fill="both", expand=True)
-        table_tab = ttk.Frame(notebook, style="Card.TFrame", padding=1)
-        self.chart_tab = ttk.Frame(notebook, style="Card.TFrame", padding=12)
-        notebook.add(table_tab, text="  Historia meczów  ")
-        notebook.add(self.chart_tab, text="  Analiza ranked  ")
+        self.notebook = ttk.Notebook(content)
+        self.notebook.grid(row=0, column=0, sticky="nsew")
+        table_tab = ttk.Frame(self.notebook, style="Card.TFrame", padding=1)
+        self.chart_tab = ttk.Frame(self.notebook, style="Card.TFrame", padding=12)
+        self.notebook.add(table_tab, text="  Historia meczów  ")
+        self.notebook.add(self.chart_tab, text="  Analiza ranked  ")
 
         table_frame = ttk.Frame(table_tab, style="Card.TFrame")
         table_frame.pack(fill="both", expand=True)
@@ -469,7 +480,7 @@ class LolApp(tk.Tk):
         win_rate = round(wins / len(ranked) * 100)
         x_values = list(range(1, len(ranked) + 1))
 
-        figure = Figure(figsize=(9, 4.4), dpi=100, facecolor=self.BG)
+        figure = Figure(figsize=(9, 6), dpi=100, facecolor=self.PANEL, layout="constrained")
         axis = figure.add_subplot(111, facecolor=self.PANEL)
         axis.plot(x_values, kda, color=self.GOLD, linewidth=2, alpha=0.85, zorder=1)
         axis.scatter(
@@ -487,9 +498,12 @@ class LolApp(tk.Tk):
         axis.grid(axis="y", color=self.BORDER, alpha=0.8)
         axis.spines[["top", "right"]].set_visible(False)
         axis.spines[["bottom", "left"]].set_color(self.BORDER)
-        axis.set_xticks(x_values)
+        tick_step = max(1, (len(x_values) + 9) // 10)
+        visible_ticks = x_values[::tick_step]
+        if visible_ticks[-1] != x_values[-1]:
+            visible_ticks.append(x_values[-1])
+        axis.set_xticks(visible_ticks)
         axis.set_ylim(bottom=0)
-        figure.tight_layout()
 
         self.chart_canvas = FigureCanvasTkAgg(figure, master=self.chart_tab)
         self.chart_canvas.draw()
