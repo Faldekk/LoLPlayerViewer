@@ -1,7 +1,7 @@
 const $ = id => document.getElementById(id);
 const defaultSettings={theme:'dark',accent:'purple',region:'Europa Pn.-Wsch. (EUNE)',matches:'30',liveRefresh:'5',compact:false};
 const savedSettings=(()=>{try{return {...defaultSettings,...JSON.parse(localStorage.getItem('lpvSettings')||'{}')}}catch{return {...defaultSettings}}})();
-const state = { player: null, matches: [], version: null, favorites: [], region: '', chartPoints: [], championMap: {}, liveFetchedAt: 0, localLive: null, localFetchedAt: 0, settings:savedSettings };
+const state = { player: null, matches: [], version: null, favorites: [], region: '', chartPoints: [], championMap: {}, liveFetchedAt: 0, localLive: null, localFetchedAt: 0, settings:savedSettings, lpTracker:{history:[],changes:{solo:null,flex:null}} };
 const queueGroups = { Ranked:[420,440], Normal:[400,430,490], ARAM:[450], Arena:[1700,1750] };
 const spellNames = {1:'SummonerBoost',3:'SummonerExhaust',4:'SummonerFlash',6:'SummonerHaste',7:'SummonerHeal',11:'SummonerSmite',12:'SummonerTeleport',14:'SummonerDot',21:'SummonerBarrier',32:'SummonerSnowball'};
 const esc = value => String(value ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
@@ -42,7 +42,7 @@ async function search(){
   try {
     const result = await window.pywebview.api.search($('riotId').value,$('region').value,$('apiKey').value,Number($('matchCount').value));
     if(!result.ok){ showError(result.error); return; }
-    state.player=result.player; state.matches=result.player.matches; state.version=result.ddragon_version; state.championMap=result.champion_map||{}; state.region=$('region').value; state.liveFetchedAt=Date.now();
+    state.player=result.player; state.matches=result.player.matches; state.version=result.ddragon_version; state.championMap=result.champion_map||{}; state.lpTracker=result.lp_tracker||{history:[],changes:{solo:null,flex:null}}; state.region=$('region').value; state.liveFetchedAt=Date.now();
     renderDashboard();
   } catch(error){ showError(`Nie udało się uruchomić wyszukiwania: ${error}`); }
   finally { $('loader').classList.add('hidden'); $('searchBtn').disabled=false; }
@@ -54,7 +54,35 @@ function renderDashboard(){
   $('playerName').textContent=state.player.riot_id; $('playerLevel').textContent=`Poziom ${state.player.level}`;
   $('profileIcon').src=asset('profileicon',state.player.profile_icon_id);
   renderRank('RANKED_SOLO_5x5','solo'); renderRank('RANKED_FLEX_SR','flex');
-  updateFavoriteButton(); renderHistory(); renderChart(); renderStats(); renderLiveGame();
+  updateFavoriteButton(); renderHistory(); renderChart(); renderStats(); renderLiveGame(); renderLpTracker();
+}
+
+function renderLpTracker(){
+  const tracker=state.lpTracker,history=tracker.history||[],latest=history[history.length-1];
+  $('lpRecordCount').textContent=`${history.length} ${history.length===1?'wpis':'wpisów'}`;
+  for(const queue of ['solo','flex']){
+    const rank=latest?.[queue],change=tracker.changes?.[queue],name=queue==='solo'?'Solo':'Flex';
+    $(`lp${name}Current`).textContent=rank?.label||'Unranked';
+    const node=$(`lp${name}Change`);node.className=change>0?'positive':change<0?'negative':'';
+    node.textContent=change===null?'Pierwszy odczyt':change===0?'Bez zmian od ostatniego odczytu':`${change>0?'+':''}${change} LP od ostatniego odczytu`;
+  }
+  $('lpHistory').innerHTML=[...history].reverse().slice(0,25).map(entry=>`<div class="lp-history-row"><span>${esc(entry.date)}</span><strong>${esc(entry.solo?.label||'Solo: Unranked')}</strong><strong>${esc(entry.flex?.label||'Flex: Unranked')}</strong></div>`).join('')||'<span class="subtext">Historia pojawi się po pierwszym wyszukaniu gracza.</span>';
+  drawLpChart();
+}
+
+function drawLpChart(){
+  const canvas=$('lpChart'),box=canvas.parentElement,history=state.lpTracker.history||[],scale=window.devicePixelRatio||1,w=box.clientWidth-36,h=box.clientHeight-36;
+  canvas.width=w*scale;canvas.height=h*scale;const ctx=canvas.getContext('2d');ctx.scale(scale,scale);ctx.clearRect(0,0,w,h);
+  if(!history.length){ctx.fillStyle='#8e98b3';ctx.font='13px Segoe UI';ctx.fillText('Brak zapisanych zmian LP.',22,35);return;}
+  const bases={};for(const q of ['solo','flex']){bases[q]=history.find(e=>e[q])?.[q]?.score??0}
+  const series={solo:history.map((e,i)=>e.solo?{i,value:e.solo.score-bases.solo}:null).filter(Boolean),flex:history.map((e,i)=>e.flex?{i,value:e.flex.score-bases.flex}:null).filter(Boolean)};
+  const all=[0,...series.solo.map(p=>p.value),...series.flex.map(p=>p.value)],min=Math.min(...all),max=Math.max(...all),range=Math.max(20,max-min),pad={l:48,r:20,t:28,b:34},cw=w-pad.l-pad.r,ch=h-pad.t-pad.b;
+  const x=i=>pad.l+(history.length===1?cw/2:cw*i/(history.length-1)),y=v=>pad.t+ch*(1-(v-min)/range);
+  ctx.strokeStyle='#272f48';ctx.fillStyle='#8e98b3';ctx.font='10px Segoe UI';ctx.lineWidth=1;
+  for(let i=0;i<=4;i++){const value=max-range*i/4,py=pad.t+ch*i/4;ctx.beginPath();ctx.moveTo(pad.l,py);ctx.lineTo(w-pad.r,py);ctx.stroke();ctx.fillText(`${value>0?'+':''}${Math.round(value)}`,4,py+3)}
+  const colors={solo:'#f2c66d',flex:getComputedStyle(document.body).getPropertyValue('--purple').trim()||'#806cff'};
+  for(const queue of ['solo','flex']){const points=series[queue];if(!points.length)continue;ctx.strokeStyle=colors[queue];ctx.lineWidth=3;ctx.beginPath();points.forEach((p,i)=>i?ctx.lineTo(x(p.i),y(p.value)):ctx.moveTo(x(p.i),y(p.value)));ctx.stroke();points.forEach(p=>{ctx.fillStyle=colors[queue];ctx.beginPath();ctx.arc(x(p.i),y(p.value),4,0,Math.PI*2);ctx.fill()})}
+  ctx.fillStyle=colors.solo;ctx.fillText('● Solo/Duo',pad.l,14);ctx.fillStyle=colors.flex;ctx.fillText('● Flex',pad.l+82,14);
 }
 
 function championName(id){return state.championMap[String(id)]||`Champion ${id}`}
@@ -276,13 +304,13 @@ function showTab(id){
   if(!state.player&&!['settings','compare'].includes(id))return;
   if(['settings','compare'].includes(id)){$('emptyState').classList.add('hidden');$('dashboard').classList.remove('hidden')}
   document.querySelector('.profile-strip').classList.toggle('hidden',!state.player);
-  document.querySelectorAll('.nav-item').forEach(b=>b.classList.toggle('active',b.dataset.tab===id));document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===id));if(id==='ranked')setTimeout(renderChart,50);if(id==='live'&&state.player){refreshLiveGame();refreshLocalLiveStats()}
+  document.querySelectorAll('.nav-item').forEach(b=>b.classList.toggle('active',b.dataset.tab===id));document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===id));if(id==='ranked')setTimeout(renderChart,50);if(id==='lp')setTimeout(drawLpChart,50);if(id==='live'&&state.player){refreshLiveGame();refreshLocalLiveStats()}
 }
 function showError(message){$('errorBox').textContent=message;$('errorBox').classList.remove('hidden')}
 function hideError(){$('errorBox').classList.add('hidden')}
 function kda(match){return (match.kills+match.assists)/Math.max(1,match.deaths)}
 function title(value){const s=String(value||'').toLowerCase();return s.charAt(0).toUpperCase()+s.slice(1)}
-window.addEventListener('resize',()=>{if(state.player&&$('ranked').classList.contains('active'))renderChart()});
+window.addEventListener('resize',()=>{if(!state.player)return;if($('ranked').classList.contains('active'))renderChart();if($('lp').classList.contains('active'))drawLpChart()});
 setInterval(()=>{const clock=$('liveClock');if(clock)clock.textContent=formatClock(liveDuration())},1000);
 setInterval(()=>{if(state.player&&$('live').classList.contains('active'))refreshLiveGame()},60000);
 async function pollLocalLive(){if(state.player&&$('live').classList.contains('active'))await refreshLocalLiveStats();setTimeout(pollLocalLive,Math.max(3,Number(state.settings.liveRefresh)||5)*1000)}

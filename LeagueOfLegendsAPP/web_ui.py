@@ -24,12 +24,13 @@ from api_config import load_api_key
 from config import REGIONS
 from live_client import LiveClient
 from riot_api import RiotApiClient, RiotApiError
-from storage import FavoritesStore
+from storage import FavoritesStore, LpTrackerStore
 
 
 class AppBridge:
     def __init__(self) -> None:
         self.store = FavoritesStore()
+        self.lp_tracker = LpTrackerStore()
         self.live_client: RiotApiClient | None = None
         self.live_puuid = ""
         self.rank_cache: dict[str, list[dict]] = {}
@@ -62,6 +63,12 @@ class AppBridge:
             self.live_client, self.live_puuid = client, player.puuid
             self.rank_cache.clear()
             try:
+                lp_tracker = self.lp_tracker.record(
+                    player.puuid, player.riot_id, region_name, player.ranks
+                )
+            except OSError:
+                lp_tracker = {"history": [], "changes": {"solo": None, "flex": None}, "recorded": False}
+            try:
                 version = DataDragonAssets.get_version()
                 champion_map = DataDragonAssets.get_champion_map()
             except Exception:
@@ -71,7 +78,7 @@ class AppBridge:
             return {"ok": False, "error": str(error)}
         except (KeyError, TypeError, ValueError):
             return {"ok": False, "error": "Riot API zwróciło nieoczekiwane dane."}
-        return {"ok": True, "player": asdict(player), "ddragon_version": version, "champion_map": champion_map}
+        return {"ok": True, "player": asdict(player), "ddragon_version": version, "champion_map": champion_map, "lp_tracker": lp_tracker}
 
     def refresh_live_game(self) -> dict:
         if self.live_client is None or not self.live_puuid:
