@@ -114,7 +114,9 @@ Skopiuj `config.example.json` jako `config.json`, a następnie wpisz klucz:
 
 `config.json` jest wpisany do `.gitignore` i nie zostanie wysłany do GitHub. Do repozytorium trafia wyłącznie bezpieczny szablon `config.example.json`, który nie zawiera prawdziwego sekretu. Klucz zapisany w JSON pozostaje jawnym tekstem na lokalnym komputerze, dlatego pliku nie należy przesyłać ani udostępniać.
 
-Klucz z `config.json` ma pierwszeństwo przed wartością wpisaną w Ustawieniach. Jeśli pliku lub klucza nie ma, aplikacja użyje zamaskowanego pola w interfejsie.
+Jeśli aplikacja nie ma jeszcze zapamiętanego, zweryfikowanego klucza, najpierw próbuje wartości z `config.json`, a następnie wartości wpisanej w Ustawieniach.
+
+Po pierwszym udanym połączeniu klucz jest zapisywany lokalnie w `%APPDATA%\LoLPlayerViewer\api_key.json`, podobnie jak lista ulubionych. Jeśli Riot API odrzuci klucz jako wygasły lub nieprawidłowy, aplikacja usuwa zapamiętaną wartość, otwiera Ustawienia i prosi o wklejenie nowego klucza. Ostatni zweryfikowany klucz ma pierwszeństwo przed starszą wartością z `config.json`.
 
 ## Klucz Riot API
 

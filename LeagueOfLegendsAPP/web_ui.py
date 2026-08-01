@@ -24,28 +24,48 @@ from api_config import load_api_key
 from config import REGIONS
 from live_client import LiveClient
 from riot_api import RiotApiClient, RiotApiError
-from storage import FavoritesStore
+from storage import ApiKeyStore, FavoritesStore
 
 
 class AppBridge:
     def __init__(self) -> None:
         self.store = FavoritesStore()
+        self.key_store = ApiKeyStore()
         self.live_client: RiotApiClient | None = None
         self.live_puuid = ""
         self.rank_cache: dict[str, list[dict]] = {}
 
     def bootstrap(self) -> dict:
+        remembered_key = self.key_store.load()
         return {
             "regions": list(REGIONS),
             "favorites": self.store.load(),
-            "api_key": load_api_key(),
+            "api_key": remembered_key or load_api_key(),
+            "api_key_saved": bool(remembered_key),
         }
+
+    def _resolve_api_key(self, supplied_key: str) -> str:
+        supplied_key = supplied_key.strip()
+        remembered_key = self.key_store.load()
+        configured_key = load_api_key()
+        if supplied_key and supplied_key not in {remembered_key, configured_key}:
+            return supplied_key
+        return remembered_key or configured_key or supplied_key
+
+    def _api_error(self, error: RiotApiError, attempted_key: str) -> dict:
+        invalid = error.status_code in (401, 403)
+        if invalid and self.key_store.load() == attempted_key:
+            try:
+                self.key_store.clear()
+            except OSError:
+                pass
+        return {"ok": False, "error": str(error), "api_key_invalid": invalid}
 
     def search(
         self, riot_id: str, region_name: str, api_key: str, match_count: int = 30
     ) -> dict:
         riot_id = riot_id.strip()
-        api_key = load_api_key() or api_key.strip()
+        api_key = self._resolve_api_key(api_key)
         if "#" not in riot_id:
             return {"ok": False, "error": "Wpisz Riot ID w formacie Nazwa#TAG."}
         if region_name not in REGIONS:
@@ -59,6 +79,10 @@ class AppBridge:
         try:
             client = RiotApiClient(api_key, platform, regional)
             player = client.load_player(game_name, tag_line, int(match_count))
+            try:
+                self.key_store.save(api_key)
+            except OSError:
+                pass
             self.live_client, self.live_puuid = client, player.puuid
             self.rank_cache.clear()
             try:
@@ -72,10 +96,10 @@ class AppBridge:
             except Exception:
                 item_map = {}
         except RiotApiError as error:
-            return {"ok": False, "error": str(error)}
+            return self._api_error(error, api_key)
         except (KeyError, TypeError, ValueError):
             return {"ok": False, "error": "Riot API zwróciło nieoczekiwane dane."}
-        return {"ok": True, "player": asdict(player), "ddragon_version": version, "champion_map": champion_map, "item_map": item_map}
+        return {"ok": True, "player": asdict(player), "ddragon_version": version, "champion_map": champion_map, "item_map": item_map, "api_key_saved": True}
 
     def refresh_live_game(self) -> dict:
         if self.live_client is None or not self.live_puuid:
@@ -83,7 +107,7 @@ class AppBridge:
         try:
             game = self.live_client.load_live_game(self.live_puuid)
         except RiotApiError as error:
-            return {"ok": False, "error": str(error)}
+            return self._api_error(error, self.live_client.api_key)
         return {"ok": True, "live_game": game}
 
     def local_live_stats(self) -> dict:
@@ -98,7 +122,7 @@ class AppBridge:
                 if puuid not in self.rank_cache:
                     self.rank_cache[puuid] = self.live_client.load_ranks(puuid)
         except RiotApiError as error:
-            return {"ok": False, "error": str(error)}
+            return self._api_error(error, self.live_client.api_key)
         return {
             "ok": True,
             "ranks": {puuid: self.rank_cache.get(puuid, []) for puuid in unique},
@@ -107,7 +131,7 @@ class AppBridge:
     def compare_player(
         self, riot_id: str, region_name: str, api_key: str, match_count: int = 20
     ) -> dict:
-        riot_id, api_key = riot_id.strip(), load_api_key() or api_key.strip()
+        riot_id, api_key = riot_id.strip(), self._resolve_api_key(api_key)
         if "#" not in riot_id:
             return {"ok": False, "error": "Wpisz drugie Riot ID w formacie Nazwa#TAG."}
         if region_name not in REGIONS or not api_key:
@@ -120,7 +144,7 @@ class AppBridge:
                 include_live=False,
             )
         except RiotApiError as error:
-            return {"ok": False, "error": str(error)}
+            return self._api_error(error, api_key)
         except (KeyError, TypeError, ValueError):
             return {"ok": False, "error": "Riot API zwróciło nieoczekiwane dane."}
         return {"ok": True, "player": asdict(player)}

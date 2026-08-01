@@ -13,6 +13,10 @@ from models import PlayerData
 class RiotApiError(Exception):
     """Czytelny dla użytkownika błąd Riot API."""
 
+    def __init__(self, message: str, status_code: int | None = None) -> None:
+        super().__init__(message)
+        self.status_code = status_code
+
 
 class RiotApiClient:
     def __init__(self, api_key: str, platform: str, regional: str) -> None:
@@ -46,7 +50,8 @@ class RiotApiClient:
                 503: "Usługa Riot API jest chwilowo niedostępna.",
             }
             raise RiotApiError(
-                messages.get(error.code, f"Błąd Riot API (HTTP {error.code}).")
+                messages.get(error.code, f"Błąd Riot API (HTTP {error.code})."),
+                status_code=error.code,
             ) from error
         except urllib.error.URLError as error:
             raise RiotApiError(

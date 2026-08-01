@@ -35,3 +35,34 @@ class FavoritesStore:
             json.dumps(favorites, ensure_ascii=False, indent=2), encoding="utf-8"
         )
         temporary.replace(self.path)
+
+
+class ApiKeyStore:
+    """Lokalny zapis ostatniego klucza, który przeszedł weryfikację Riot API."""
+
+    def __init__(self) -> None:
+        app_data = os.environ.get("APPDATA")
+        base = Path(app_data) if app_data else Path.home() / ".config"
+        self.path = base / "LoLPlayerViewer" / "api_key.json"
+
+    def load(self) -> str:
+        try:
+            data = json.loads(self.path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return ""
+        key = data.get("riot_api_key", "") if isinstance(data, dict) else ""
+        return key.strip() if isinstance(key, str) else ""
+
+    def save(self, api_key: str) -> None:
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        temporary = self.path.with_suffix(".tmp")
+        temporary.write_text(
+            json.dumps({"riot_api_key": api_key}, indent=2), encoding="utf-8"
+        )
+        temporary.replace(self.path)
+
+    def clear(self) -> None:
+        try:
+            self.path.unlink()
+        except FileNotFoundError:
+            pass

@@ -13,6 +13,7 @@ window.addEventListener('pywebviewready', async () => {
   data.regions.forEach(region => {$('region').add(new Option(region,region));$('settingRegion').add(new Option(region,region))});
   state.favorites = data.favorites;
   if(data.api_key)$('apiKey').value=data.api_key;
+  $('apiKeyStatus').textContent=data.api_key_saved?'Zapamiętany, zweryfikowany klucz jest gotowy.':data.api_key?'Wczytano klucz z lokalnego config.json.':'Klucz zostanie zapisany lokalnie po udanym połączeniu z Riot API.';
   applySettings();
   renderFavorites();
 });
@@ -43,9 +44,10 @@ async function search(){
   hideError(); $('loader').classList.remove('hidden'); $('searchBtn').disabled=true;
   try {
     const result = await window.pywebview.api.search($('riotId').value,$('region').value,$('apiKey').value,Number($('matchCount').value));
-    if(!result.ok){ showError(result.error); return; }
+    if(!result.ok){if(result.api_key_invalid)requestNewApiKey(result.error);else showError(result.error);return;}
     state.player=result.player; state.matches=result.player.matches; state.version=result.ddragon_version; state.championMap=result.champion_map||{}; state.itemMap=result.item_map||{}; state.region=$('region').value; state.liveFetchedAt=Date.now();
     renderDashboard();
+    $('apiKeyStatus').textContent='Klucz zweryfikowany i zapisany lokalnie.';
   } catch(error){ showError(`Nie udało się uruchomić wyszukiwania: ${error}`); }
   finally { $('loader').classList.add('hidden'); $('searchBtn').disabled=false; }
 }
@@ -94,7 +96,7 @@ async function refreshLocalLiveStats(){
 async function refreshLiveGame(){
   if(!state.player)return;
   const button=$('refreshLiveBtn');button.disabled=true;button.textContent='Sprawdzanie…';
-  try{const result=await window.pywebview.api.refresh_live_game();if(!result.ok){showError(result.error);return}state.player.live_game=result.live_game;state.liveFetchedAt=Date.now();renderLiveGame();}
+  try{const result=await window.pywebview.api.refresh_live_game();if(!result.ok){if(result.api_key_invalid)requestNewApiKey(result.error);else showError(result.error);return}state.player.live_game=result.live_game;state.liveFetchedAt=Date.now();renderLiveGame();}
   catch(error){showError(`Nie udało się sprawdzić meczu: ${error}`)}
   finally{button.disabled=false;button.textContent='Odśwież'}
 }
@@ -240,7 +242,7 @@ async function openDetails(match){
   const puuids=match.participants.map(p=>p.puuid).filter(Boolean);
   if(!puuids.length)return;
   const result=await window.pywebview.api.participant_ranks(puuids);
-  if(!result.ok){document.querySelectorAll('.participant-rank').forEach(node=>node.textContent='Nie udało się pobrać rangi');return;}
+  if(!result.ok){document.querySelectorAll('.participant-rank').forEach(node=>node.textContent='Nie udało się pobrać rangi');if(result.api_key_invalid)requestNewApiKey(result.error);return;}
   document.querySelectorAll('[data-rank-puuid]').forEach(node=>{node.textContent=formatRanks(result.ranks[node.dataset.rankPuuid]||[])});
 }
 
@@ -269,7 +271,7 @@ async function comparePlayers(){
   if(!state.player){$('compareContent').textContent='Najpierw wyszukaj główny profil gracza.';return;}
   const riotId=$('compareRiotId').value.trim();if(!riotId)return;
   const button=$('compareBtn');button.disabled=true;button.textContent='Pobieranie…';
-  try{const result=await window.pywebview.api.compare_player(riotId,state.region,$('apiKey').value,20);if(!result.ok){showError(result.error);return}$('compareContent').className='compare-grid';$('compareContent').innerHTML=`${compareCard(state.player)}<div class="compare-vs">VS</div>${compareCard(result.player)}`;}
+  try{const result=await window.pywebview.api.compare_player(riotId,state.region,$('apiKey').value,20);if(!result.ok){if(result.api_key_invalid)requestNewApiKey(result.error);else showError(result.error);return}$('compareContent').className='compare-grid';$('compareContent').innerHTML=`${compareCard(state.player)}<div class="compare-vs">VS</div>${compareCard(result.player)}`;}
   catch(error){showError(`Nie udało się porównać graczy: ${error}`)}finally{button.disabled=false;button.textContent='Porównaj'}
 }
 
@@ -303,6 +305,7 @@ function showTab(id){
   document.querySelectorAll('.nav-item').forEach(b=>b.classList.toggle('active',b.dataset.tab===id));document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===id));if(id==='ranked')setTimeout(renderChart,50);if(id==='live'&&state.player){refreshLiveGame();refreshLocalLiveStats()}
 }
 function showError(message){$('errorBox').textContent=message;$('errorBox').classList.remove('hidden')}
+function requestNewApiKey(message){$('apiKey').value='';$('apiKey').type='password';$('toggleApiKey').textContent='Pokaż';$('apiKeyStatus').textContent='Poprzedni klucz wygasł lub został odrzucony. Wklej nowy klucz.';showTab('settings');showError(`${message} Wklej nowy klucz w Ustawieniach.`);setTimeout(()=>$('apiKey').focus(),80)}
 function hideError(){$('errorBox').classList.add('hidden')}
 function kda(match){return (match.kills+match.assists)/Math.max(1,match.deaths)}
 function title(value){const s=String(value||'').toLowerCase();return s.charAt(0).toUpperCase()+s.slice(1)}
