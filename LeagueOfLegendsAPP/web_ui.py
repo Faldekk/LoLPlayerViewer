@@ -21,6 +21,7 @@ except ImportError:
 
 from assets import DataDragonAssets
 from config import REGIONS
+from live_client import LiveClient
 from riot_api import RiotApiClient, RiotApiError
 from storage import FavoritesStore
 
@@ -73,6 +74,9 @@ class AppBridge:
         except RiotApiError as error:
             return {"ok": False, "error": str(error)}
         return {"ok": True, "live_game": game}
+
+    def local_live_stats(self) -> dict:
+        return {"ok": True, "live_stats": LiveClient.load()}
 
     def toggle_favorite(self, riot_id: str, region: str) -> dict:
         favorites = self.store.load()

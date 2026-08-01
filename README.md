@@ -27,6 +27,8 @@ Desktopowa aplikacja z backendem Python i nowoczesnym interfejsem HTML/CSS/JavaS
 
 Zakładka Live Game pokazuje aktywny mecz wyszukanego gracza: obie drużyny, championów, summoner spelle oraz aktualny czas gry. Dane odświeżają się automatycznie co 60 sekund lub po użyciu przycisku Odśwież.
 
+Jeśli LoL działa na tym samym komputerze i wyszukane Riot ID należy do aktywnego gracza, aplikacja używa lokalnego Live Client Data API. Pokazuje wtedy aktualne K/D/A, CS, vision, poziomy, itemy, czas odrodzenia i bieżący gold, odświeżając dane co 5 sekund.
+
 ## Wymagania
 
 - Windows 10 lub Windows 11,

@@ -1,5 +1,5 @@
 const $ = id => document.getElementById(id);
-const state = { player: null, matches: [], version: null, favorites: [], region: '', chartPoints: [], championMap: {}, liveFetchedAt: 0 };
+const state = { player: null, matches: [], version: null, favorites: [], region: '', chartPoints: [], championMap: {}, liveFetchedAt: 0, localLive: null, localFetchedAt: 0 };
 const queueGroups = { Ranked:[420,440], Normal:[400,430,490], ARAM:[450], Arena:[1700,1750] };
 const spellNames = {1:'SummonerBoost',3:'SummonerExhaust',4:'SummonerFlash',6:'SummonerHaste',7:'SummonerHeal',11:'SummonerSmite',12:'SummonerTeleport',14:'SummonerDot',21:'SummonerBarrier',32:'SummonerSnowball'};
 const esc = value => String(value ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
@@ -18,7 +18,7 @@ $('riotId').addEventListener('keydown', event => { if (event.key === 'Enter') se
 $('modalClose').addEventListener('click', () => $('modal').classList.add('hidden'));
 $('modal').addEventListener('click', event => { if (event.target === $('modal')) $('modal').classList.add('hidden'); });
 $('favoriteBtn').addEventListener('click', toggleFavorite);
-$('refreshLiveBtn').addEventListener('click', refreshLiveGame);
+$('refreshLiveBtn').addEventListener('click', async()=>{await refreshLiveGame();await refreshLocalLiveStats()});
 ['queueFilter','resultFilter','championFilter'].forEach(id => $(id).addEventListener(id==='championFilter'?'input':'change', renderHistory));
 document.querySelectorAll('.nav-item').forEach(button => button.addEventListener('click', () => showTab(button.dataset.tab)));
 $('favoritesSelect').addEventListener('change', () => {
@@ -51,16 +51,33 @@ function renderDashboard(){
 function championName(id){return state.championMap[String(id)]||`Champion ${id}`}
 function spellIcon(id){const name=spellNames[id];return name?asset('spell',name):''}
 function liveDuration(){
+  if(state.localLive)return Math.max(0,(state.localLive.game_time||0)+Math.floor((Date.now()-state.localFetchedAt)/1000));
   const game=state.player?.live_game;if(!game)return 0;
   return Math.max(0,(game.game_length||0)+Math.floor((Date.now()-state.liveFetchedAt)/1000));
 }
 function formatClock(seconds){return `${Math.floor(seconds/60)}:${String(seconds%60).padStart(2,'0')}`}
 
 function renderLiveGame(){
+  if(state.localLive){renderLocalLiveStats();return;}
   const game=state.player?.live_game,content=$('liveGameContent');
   if(!game){content.innerHTML='<div class="live-empty"><strong>Gracz nie jest teraz w meczu</strong><span>Użyj „Odśwież”, aby sprawdzić ponownie.</span></div>';return;}
   const teams=[100,200];
   content.innerHTML=`<div class="live-header"><div><div class="live-indicator">● MECZ NA ŻYWO</div><strong>${esc(game.game_mode)} · ${esc(game.queue_id||'Tryb niestandardowy')}</strong></div><div id="liveClock" class="live-clock">${formatClock(liveDuration())}</div></div><div class="live-teams">${teams.map((teamId,index)=>`<section class="live-team ${index?'red':'blue'}"><h4>${index?'CZERWONA':'NIEBIESKA'} DRUŻYNA</h4>${game.participants.filter(p=>p.team_id===teamId).map(p=>{const champ=championName(p.champion_id),target=p.puuid===state.player.puuid;return `<div class="live-player ${target?'target':''}"><img src="${asset('champion',champ)}" alt=""><div><strong>${esc(p.riot_id)}${target?' · SZUKANY GRACZ':''}</strong><small>${esc(champ)}${p.bot?' · Bot':''}</small></div><div class="live-spells">${[p.spell1_id,p.spell2_id].map(id=>spellIcon(id)?`<img src="${spellIcon(id)}" title="Spell ${id}">`:'').join('')}</div></div>`}).join('')}</section>`).join('')}</div>`;
+}
+
+function renderLocalLiveStats(){
+  const live=state.localLive,content=$('liveGameContent'),teams=['ORDER','CHAOS'];
+  content.innerHTML=`<div class="live-header"><div><div class="live-indicator">● LIVE STATS · TEN KOMPUTER</div><strong>${esc(live.game_mode)} · statystyki odświeżane co 5 sekund</strong></div><div><div id="liveClock" class="live-clock">${formatClock(liveDuration())}</div><div class="live-gold">${number(live.current_gold)} GOLD</div></div></div><div class="live-teams">${teams.map((team,index)=>`<section class="live-team ${index?'red':'blue'}"><h4>${index?'CZERWONA':'NIEBIESKA'} DRUŻYNA</h4>${live.players.filter(p=>p.team===team).map(p=>{const active=p.riot_id.toLowerCase()===live.active_riot_id.toLowerCase();return `<div class="live-stat-player ${active?'target':''}"><img class="live-champion" src="${asset('champion',p.champion)}" alt=""><div class="live-player-name"><strong>${esc(p.riot_id)}${active?' · TY':''}</strong><small>${esc(p.champion)} · ${esc(p.position||'Pozycja nieznana')} · lvl ${p.level}</small></div><div class="live-score"><strong>${p.kills} / ${p.deaths} / ${p.assists}</strong><small>${p.cs} CS · ${p.vision} vision</small></div><div class="live-items">${p.items.map(id=>`<img src="${asset('item',id)}" alt="">`).join('')}</div>${p.is_dead?`<span class="dead-badge">Odrodzenie: ${p.respawn}s</span>`:''}</div>`}).join('')}</section>`).join('')}</div>`;
+}
+
+async function refreshLocalLiveStats(){
+  if(!state.player)return;
+  try{
+    const result=await window.pywebview.api.local_live_stats(),local=result.live_stats;
+    const searched=state.player.riot_id.trim().toLowerCase();
+    state.localLive=local&&String(local.active_riot_id||'').trim().toLowerCase()===searched?local:null;
+    state.localFetchedAt=Date.now();renderLiveGame();
+  }catch(error){state.localLive=null}
 }
 
 async function refreshLiveGame(){
@@ -169,7 +186,7 @@ async function toggleFavorite(){
 }
 function renderFavorites(){$('favoritesSelect').innerHTML='<option value="">'+(state.favorites.length?'Wybierz gracza…':'Brak zapisanych graczy')+'</option>'+state.favorites.map((f,i)=>`<option value="${i}">${esc(f.riot_id)} · ${esc(f.region)}</option>`).join('')}
 function updateFavoriteButton(){const saved=state.favorites.some(f=>f.riot_id.toLowerCase()===state.player.riot_id.toLowerCase()&&f.region===state.region);$('favoriteBtn').textContent=saved?'★ Usuń':'☆ Dodaj'}
-function showTab(id){document.querySelectorAll('.nav-item').forEach(b=>b.classList.toggle('active',b.dataset.tab===id));document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===id));if(id==='ranked')setTimeout(renderChart,50);if(id==='live'&&state.player)refreshLiveGame()}
+function showTab(id){document.querySelectorAll('.nav-item').forEach(b=>b.classList.toggle('active',b.dataset.tab===id));document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===id));if(id==='ranked')setTimeout(renderChart,50);if(id==='live'&&state.player){refreshLiveGame();refreshLocalLiveStats()}}
 function showError(message){$('errorBox').textContent=message;$('errorBox').classList.remove('hidden')}
 function hideError(){$('errorBox').classList.add('hidden')}
 function kda(match){return (match.kills+match.assists)/Math.max(1,match.deaths)}
@@ -177,3 +194,4 @@ function title(value){const s=String(value||'').toLowerCase();return s.charAt(0)
 window.addEventListener('resize',()=>{if(state.player&&$('ranked').classList.contains('active'))renderChart()});
 setInterval(()=>{const clock=$('liveClock');if(clock)clock.textContent=formatClock(liveDuration())},1000);
 setInterval(()=>{if(state.player&&$('live').classList.contains('active'))refreshLiveGame()},60000);
+setInterval(()=>{if(state.player&&$('live').classList.contains('active'))refreshLocalLiveStats()},5000);
