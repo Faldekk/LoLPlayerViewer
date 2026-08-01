@@ -38,15 +38,15 @@ except ImportError:
 
 
 class LolApp(tk.Tk):
-    BG = "#f4f7fb"
-    PANEL = "#ffffff"
-    PANEL_ALT = "#edf2f8"
-    BORDER = "#dce3ec"
-    GOLD = "#2563eb"
-    TEXT = "#172033"
-    MUTED = "#687386"
-    BLUE = "#16a36a"
-    RED = "#dc4c64"
+    BG = "#090d18"
+    PANEL = "#131929"
+    PANEL_ALT = "#1a2135"
+    BORDER = "#293149"
+    GOLD = "#806cff"
+    TEXT = "#f0f3ff"
+    MUTED = "#929bb2"
+    BLUE = "#35d6a2"
+    RED = "#ff6382"
 
     def __init__(self) -> None:
         super().__init__()
@@ -54,6 +54,10 @@ class LolApp(tk.Tk):
         self.geometry("1050x720")
         self.minsize(900, 620)
         self.configure(bg=self.BG)
+        self.option_add("*TCombobox*Listbox.background", self.PANEL_ALT)
+        self.option_add("*TCombobox*Listbox.foreground", self.TEXT)
+        self.option_add("*TCombobox*Listbox.selectBackground", self.GOLD)
+        self.option_add("*TCombobox*Listbox.selectForeground", "#ffffff")
         self.icon_photos: dict[tuple[str, str, int], object] = {}
         self.match_by_row: dict[str, dict] = {}
         self.current_matches: list[dict] = []
@@ -67,12 +71,15 @@ class LolApp(tk.Tk):
         style = ttk.Style(self)
         style.theme_use("clam")
         style.configure("TFrame", background=self.BG)
-        style.configure("Card.TFrame", background=self.PANEL, relief="solid", borderwidth=1)
+        style.configure(
+            "Card.TFrame", background=self.PANEL, relief="solid", borderwidth=1,
+            bordercolor=self.BORDER, lightcolor=self.BORDER, darkcolor=self.BORDER,
+        )
         style.configure(
             "TLabel", background=self.BG, foreground=self.TEXT, font=("Segoe UI", 10)
         )
         style.configure(
-            "Title.TLabel", font=("Segoe UI Semibold", 26), foreground=self.TEXT
+            "Title.TLabel", font=("Segoe UI Semibold", 27), foreground=self.TEXT
         )
         style.configure("Subtitle.TLabel", foreground=self.MUTED, font=("Segoe UI", 10))
         style.configure(
@@ -83,7 +90,15 @@ class LolApp(tk.Tk):
             background=self.PANEL, foreground=self.TEXT,
         )
         style.configure(
+            "Rank.TLabel", font=("Segoe UI Semibold", 17),
+            background=self.PANEL, foreground="#f4c86a",
+        )
+        style.configure(
             "CardLabel.TLabel", background=self.PANEL, foreground=self.MUTED,
+            font=("Segoe UI Semibold", 9),
+        )
+        style.configure(
+            "CardAccent.TLabel", background=self.PANEL, foreground=self.GOLD,
             font=("Segoe UI Semibold", 9),
         )
         style.configure(
@@ -103,29 +118,56 @@ class LolApp(tk.Tk):
         )
         style.map(
             "Accent.TButton",
-            background=[("active", "#1d4ed8"), ("disabled", "#9aafcf")],
+            background=[("active", "#9989ff"), ("disabled", "#3f4560")],
         )
         style.configure(
-            "TEntry", padding=9, fieldbackground="#ffffff", foreground=self.TEXT,
+            "Secondary.TButton", font=("Segoe UI Semibold", 9), padding=(11, 7),
+            background=self.PANEL_ALT, foreground=self.TEXT,
+            borderwidth=1, bordercolor=self.BORDER,
+        )
+        style.map(
+            "Secondary.TButton",
+            background=[("active", "#262e47"), ("disabled", "#151a29")],
+            foreground=[("disabled", "#606981")],
+        )
+        style.configure(
+            "TEntry", padding=9, fieldbackground="#0e1423", foreground=self.TEXT,
             bordercolor=self.BORDER, lightcolor=self.BORDER, darkcolor=self.BORDER,
+            insertcolor=self.TEXT,
         )
         style.configure(
-            "TCombobox", padding=8, fieldbackground="#ffffff", foreground=self.TEXT,
-            bordercolor=self.BORDER, arrowcolor=self.MUTED,
+            "TCombobox", padding=8, fieldbackground="#0e1423", foreground=self.TEXT,
+            background="#0e1423", bordercolor=self.BORDER,
+            lightcolor=self.BORDER, darkcolor=self.BORDER, arrowcolor=self.MUTED,
+        )
+        style.map(
+            "TCombobox",
+            fieldbackground=[("readonly", "#0e1423"), ("disabled", "#111625")],
+            foreground=[("readonly", self.TEXT), ("disabled", self.MUTED)],
+            selectbackground=[("readonly", "#0e1423")],
+            selectforeground=[("readonly", self.TEXT)],
         )
         style.configure(
             "Treeview", background=self.PANEL, fieldbackground=self.PANEL,
             foreground=self.TEXT, rowheight=36, borderwidth=0, font=("Segoe UI", 10),
         )
         style.configure(
-            "Treeview.Heading", background=self.PANEL_ALT, foreground=self.MUTED,
+            "Treeview.Heading", background="#1d253a", foreground="#b6bfd5",
             font=("Segoe UI Semibold", 9), relief="flat", padding=(8, 9),
         )
-        style.map("Treeview", background=[("selected", "#dbeafe")], foreground=[("selected", self.TEXT)])
-        style.configure("TNotebook", background=self.BG, borderwidth=0)
+        style.map(
+            "Treeview",
+            background=[("selected", "#302b56")],
+            foreground=[("selected", "#ffffff")],
+        )
+        style.configure(
+            "TNotebook", background=self.BG, borderwidth=0,
+            bordercolor=self.BG, lightcolor=self.BG, darkcolor=self.BG,
+        )
         style.configure(
             "TNotebook.Tab", background=self.BG, foreground=self.MUTED,
-            padding=(18, 10), font=("Segoe UI Semibold", 10), borderwidth=0,
+            padding=(18, 10), font=("Segoe UI Semibold", 10), borderwidth=1,
+            bordercolor=self.BORDER, lightcolor=self.BORDER, darkcolor=self.BORDER,
         )
         style.map(
             "TNotebook.Tab",
@@ -134,6 +176,7 @@ class LolApp(tk.Tk):
         )
 
     def _build_ui(self) -> None:
+        tk.Frame(self, bg=self.GOLD, height=3).pack(fill="x")
         outer = ttk.Frame(self, padding=(30, 24))
         outer.pack(fill="both", expand=True)
 
@@ -141,10 +184,10 @@ class LolApp(tk.Tk):
         header.pack(fill="x", pady=(0, 20))
         heading = ttk.Frame(header)
         heading.pack(side="left")
-        ttk.Label(heading, text="LEAGUE STATS", style="Eyebrow.TLabel").pack(anchor="w")
+        ttk.Label(heading, text="PLAYER INSIGHTS", style="Eyebrow.TLabel").pack(anchor="w")
         ttk.Label(heading, text="LoL Player Viewer", style="Title.TLabel").pack(anchor="w")
         ttk.Label(
-            heading, text="Sprawdź formę gracza, ranking i historię ostatnich gier.",
+            heading, text="Analizuj formę, znajdź mocne strony i wspinaj się wyżej.",
             style="Subtitle.TLabel",
         ).pack(anchor="w", pady=(2, 0))
 
@@ -159,11 +202,16 @@ class LolApp(tk.Tk):
         ttk.Label(search, text="REGION", style="CardLabel.TLabel").grid(row=0, column=1, sticky="w", padx=(14, 0))
         ttk.Label(search, text="KLUCZ RIOT API", style="CardLabel.TLabel").grid(row=0, column=2, sticky="w", padx=(14, 0))
         ttk.Label(search, text="MECZE", style="CardLabel.TLabel").grid(row=0, column=3, sticky="w", padx=(14, 0))
-        self.riot_entry = ttk.Entry(search, textvariable=self.riot_id_var, width=38)
+        self.riot_entry = ttk.Entry(search, textvariable=self.riot_id_var, width=20)
         self.riot_entry.grid(row=1, column=0, sticky="ew", pady=(4, 0))
-        region_box = ttk.Combobox(search, textvariable=self.region_var, values=list(REGIONS), state="readonly", width=31)
+        region_box = ttk.Combobox(
+            search, textvariable=self.region_var, values=list(REGIONS),
+            state="readonly", width=18,
+        )
         region_box.grid(row=1, column=1, sticky="ew", padx=(14, 0), pady=(4, 0))
-        self.api_key_entry = ttk.Entry(search, textvariable=self.api_key_var, show="•")
+        self.api_key_entry = ttk.Entry(
+            search, textvariable=self.api_key_var, show="•", width=22
+        )
         self.api_key_entry.grid(row=1, column=2, sticky="ew", padx=(14, 0), pady=(4, 0))
         match_count_box = ttk.Combobox(
             search, textvariable=self.match_count_var,
@@ -197,7 +245,7 @@ class LolApp(tk.Tk):
         favorites_card = ttk.Frame(cards, style="Card.TFrame", padding=14)
         favorites_card.grid(row=0, column=0, sticky="ew", pady=(0, 6))
         ttk.Label(
-            favorites_card, text="★  ULUBIENI GRACZE", style="CardLabel.TLabel"
+            favorites_card, text="★  ULUBIENI GRACZE", style="CardAccent.TLabel"
         ).pack(anchor="w")
         self.favorite_var = tk.StringVar()
         self.favorite_combo = ttk.Combobox(
@@ -231,7 +279,8 @@ class LolApp(tk.Tk):
         self.status_label = ttk.Label(profile, text="GOTOWE", style="Status.TLabel")
         self.status_label.pack(anchor="w", pady=(9, 0))
         self.favorite_button = ttk.Button(
-            profile, text="☆ Dodaj do ulubionych", command=self._toggle_favorite
+            profile, text="☆ Dodaj do ulubionych", style="Secondary.TButton",
+            command=self._toggle_favorite,
         )
         self.favorite_button.pack(anchor="w", pady=(8, 0))
         self._update_favorite_button()
@@ -245,7 +294,7 @@ class LolApp(tk.Tk):
             )
             queue_label = "SOLO / DUO" if index == 0 else "FLEX 5V5"
             ttk.Label(card, text=queue_label, style="CardLabel.TLabel").pack(anchor="w")
-            title = ttk.Label(card, text="Bez danych", style="CardTitle.TLabel")
+            title = ttk.Label(card, text="Bez danych", style="Rank.TLabel")
             title.pack(anchor="w", pady=(5, 0))
             details = ttk.Label(card, text="Brak rozegranych gier", style="CardMuted.TLabel")
             details.pack(anchor="w", pady=(3, 0))
@@ -273,17 +322,17 @@ class LolApp(tk.Tk):
         queue_filter = ttk.Combobox(
             table_header, textvariable=self.history_queue_var,
             values=("Wszystkie tryby", "Ranked", "Normal", "ARAM", "Arena"),
-            state="readonly", width=15,
+            state="readonly", width=11,
         )
         queue_filter.pack(side="left", padx=(0, 6))
         result_filter = ttk.Combobox(
             table_header, textvariable=self.history_result_var,
             values=("Wszystkie wyniki", "Wygrane", "Przegrane"),
-            state="readonly", width=16,
+            state="readonly", width=12,
         )
         result_filter.pack(side="left", padx=(0, 6))
         champion_filter = ttk.Entry(
-            table_header, textvariable=self.history_champion_var, width=17
+            table_header, textvariable=self.history_champion_var, width=11
         )
         champion_filter.pack(side="left")
         self.filter_count_label = ttk.Label(
@@ -318,8 +367,12 @@ class LolApp(tk.Tk):
         self.matches_tree.configure(yscrollcommand=scrollbar.set)
         self.matches_tree.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
-        self.matches_tree.tag_configure("win", foreground=self.BLUE)
-        self.matches_tree.tag_configure("loss", foreground="#ff7676")
+        self.matches_tree.tag_configure(
+            "win", foreground="#bdf8e3", background="#122b29"
+        )
+        self.matches_tree.tag_configure(
+            "loss", foreground="#ffd0d9", background="#2d1825"
+        )
         self.matches_tree.bind("<Double-1>", self._open_selected_match)
 
         self.chart_placeholder = ttk.Label(
