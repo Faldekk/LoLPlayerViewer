@@ -207,9 +207,15 @@ class RiotApiClient:
             "kills": participant.get("kills", 0),
             "deaths": participant.get("deaths", 0),
             "assists": participant.get("assists", 0),
+            "cs": int(participant.get("totalMinionsKilled", 0))
+            + int(participant.get("neutralMinionsKilled", 0)),
+            "damage": int(participant.get("totalDamageDealtToChampions", 0)),
+            "gold": int(participant.get("goldEarned", 0)),
+            "vision": int(participant.get("visionScore", 0)),
             "queue": QUEUE_NAMES.get(info.get("queueId"), f"Kolejka {info.get('queueId', '?')}"),
             "queue_id": info.get("queueId"),
             "duration": f"{duration // 60}:{duration % 60:02d}",
+            "duration_seconds": duration,
             "date": datetime.fromtimestamp(started_ms / 1000).strftime("%d.%m.%Y %H:%M") if started_ms else "—",
             "participants": [
                 RiotApiClient._summarize_participant(item)
@@ -288,6 +294,10 @@ class LolApp(tk.Tk):
         )
         style.configure(
             "CardMuted.TLabel", background=self.PANEL, foreground=self.MUTED,
+        )
+        style.configure(
+            "Metric.TLabel", background=self.PANEL, foreground=self.TEXT,
+            font=("Segoe UI Semibold", 22),
         )
         style.configure(
             "Status.TLabel", background=self.PANEL, foreground=self.GOLD,
@@ -415,8 +425,10 @@ class LolApp(tk.Tk):
         self.notebook.grid(row=0, column=0, sticky="nsew")
         table_tab = ttk.Frame(self.notebook, style="Card.TFrame", padding=1)
         self.chart_tab = ttk.Frame(self.notebook, style="Card.TFrame", padding=12)
+        self.stats_tab = ttk.Frame(self.notebook, style="Card.TFrame", padding=14)
         self.notebook.add(table_tab, text="  Historia meczów  ")
         self.notebook.add(self.chart_tab, text="  Analiza ranked  ")
+        self.notebook.add(self.stats_tab, text="  Statystyki  ")
 
         table_header = ttk.Frame(table_tab, style="Card.TFrame", padding=(12, 8))
         table_header.pack(fill="x")
@@ -454,6 +466,58 @@ class LolApp(tk.Tk):
         )
         self.chart_placeholder.pack(expand=True)
         self.chart_canvas = None
+
+        metrics = ttk.Frame(self.stats_tab, style="Card.TFrame")
+        metrics.pack(fill="x", pady=(0, 14))
+        self.metric_labels: dict[str, ttk.Label] = {}
+        metric_definitions = (
+            ("win_rate", "WIN RATE"),
+            ("kda", "ŚREDNIE KDA"),
+            ("cs_min", "ŚREDNIE CS / MIN"),
+            ("damage", "ŚREDNIE OBRAŻENIA"),
+        )
+        for column, (key, title) in enumerate(metric_definitions):
+            card = ttk.Frame(metrics, style="Card.TFrame", padding=12)
+            card.grid(
+                row=0, column=column, sticky="nsew",
+                padx=(0, 5) if column < len(metric_definitions) - 1 else 0,
+            )
+            ttk.Label(card, text=title, style="CardLabel.TLabel").pack(anchor="w")
+            value = ttk.Label(card, text="—", style="Metric.TLabel")
+            value.pack(anchor="w", pady=(4, 0))
+            self.metric_labels[key] = value
+            metrics.columnconfigure(column, weight=1, uniform="metrics")
+
+        stats_header = ttk.Frame(self.stats_tab, style="Card.TFrame")
+        stats_header.pack(fill="x", pady=(0, 7))
+        ttk.Label(
+            stats_header, text="NAJCZĘŚCIEJ GRANI BOHATEROWIE", style="CardLabel.TLabel"
+        ).pack(side="left")
+        self.stats_summary_label = ttk.Label(
+            stats_header, text="", style="CardMuted.TLabel"
+        )
+        self.stats_summary_label.pack(side="right")
+
+        champion_columns = ("champion", "games", "record", "win_rate", "kda")
+        self.champion_tree = ttk.Treeview(
+            self.stats_tab, columns=champion_columns, show="headings", height=8
+        )
+        champion_headings = {
+            "champion": "Bohater", "games": "Gry", "record": "W / L",
+            "win_rate": "Win rate", "kda": "KDA",
+        }
+        champion_widths = {
+            "champion": 190, "games": 70, "record": 100,
+            "win_rate": 100, "kda": 90,
+        }
+        for column in champion_columns:
+            self.champion_tree.heading(column, text=champion_headings[column])
+            self.champion_tree.column(
+                column, width=champion_widths[column], anchor="center"
+            )
+        self.champion_tree.tag_configure("positive", foreground=self.BLUE)
+        self.champion_tree.tag_configure("negative", foreground=self.RED)
+        self.champion_tree.pack(fill="both", expand=True)
 
         self.riot_entry.focus_set()
 
@@ -549,7 +613,73 @@ class LolApp(tk.Tk):
             self.match_by_row[row_id] = match
         self._load_history_icons(data.matches)
         self._draw_ranked_chart(data.matches)
+        self._draw_statistics(data.matches)
         self.status_label.configure(text=f"POBRANO {len(data.matches)} MECZÓW")
+
+    def _draw_statistics(self, matches: list[dict]) -> None:
+        for row_id in self.champion_tree.get_children():
+            self.champion_tree.delete(row_id)
+        if not matches:
+            for label in self.metric_labels.values():
+                label.configure(text="—")
+            self.stats_summary_label.configure(text="Brak danych")
+            return
+
+        games = len(matches)
+        wins = sum(match.get("result") == "Wygrana" for match in matches)
+        average_kda = sum(
+            (match.get("kills", 0) + match.get("assists", 0))
+            / max(1, match.get("deaths", 0))
+            for match in matches
+        ) / games
+        cs_per_minute = []
+        for match in matches:
+            minutes = match.get("duration_seconds", 0) / 60
+            if minutes > 0:
+                cs_per_minute.append(match.get("cs", 0) / minutes)
+        average_cs = sum(cs_per_minute) / len(cs_per_minute) if cs_per_minute else 0
+        average_damage = sum(match.get("damage", 0) for match in matches) / games
+        average_vision = sum(match.get("vision", 0) for match in matches) / games
+
+        self.metric_labels["win_rate"].configure(text=f"{wins / games * 100:.0f}%")
+        self.metric_labels["kda"].configure(text=f"{average_kda:.2f}")
+        self.metric_labels["cs_min"].configure(text=f"{average_cs:.1f}")
+        self.metric_labels["damage"].configure(text=f"{average_damage:,.0f}".replace(",", " "))
+        self.stats_summary_label.configure(
+            text=f"{games} gier  •  średni vision score {average_vision:.1f}"
+        )
+
+        champions: dict[str, dict[str, int]] = {}
+        for match in matches:
+            champion = match.get("champion", "Nieznany")
+            stats = champions.setdefault(
+                champion,
+                {"games": 0, "wins": 0, "kills": 0, "deaths": 0, "assists": 0},
+            )
+            stats["games"] += 1
+            stats["wins"] += match.get("result") == "Wygrana"
+            stats["kills"] += int(match.get("kills", 0))
+            stats["deaths"] += int(match.get("deaths", 0))
+            stats["assists"] += int(match.get("assists", 0))
+
+        ranking = sorted(
+            champions.items(),
+            key=lambda item: (item[1]["games"], item[1]["wins"]),
+            reverse=True,
+        )
+        for champion, stats in ranking[:10]:
+            losses = stats["games"] - stats["wins"]
+            win_rate = stats["wins"] / stats["games"] * 100
+            kda = (stats["kills"] + stats["assists"]) / max(1, stats["deaths"])
+            tag = "positive" if win_rate >= 50 else "negative"
+            self.champion_tree.insert(
+                "", "end",
+                values=(
+                    champion, stats["games"], f"{stats['wins']} / {losses}",
+                    f"{win_rate:.0f}%", f"{kda:.2f}",
+                ),
+                tags=(tag,),
+            )
 
     @staticmethod
     def _photo_from_bytes(content: bytes, size: int):

@@ -14,6 +14,8 @@ Desktopowa aplikacja napisana w Pythonie, która pobiera dane gracza z oficjalne
 - szczegóły meczu otwierane dwuklikiem,
 - składy obu drużyn, CS, obrażenia, gold, vision i komplet przedmiotów,
 - wykres Matplotlib dla meczów Solo/Duo i Flex,
+- osobna analiza 30 gier: win rate, średnie KDA, CS/min, obrażenia i vision,
+- ranking najczęściej granych bohaterów z ich win rate i KDA,
 - oznaczenie zwycięstw i porażek kolorami,
 - pobieranie danych w tle bez zawieszania interfejsu,
 - bezpieczne, zamaskowane pole na klucz Riot API.
@@ -99,7 +101,7 @@ Klucz deweloperski Riot zazwyczaj wygasa po 24 godzinach. Po wygaśnięciu wygen
 2. Wybierz region, na którym znajduje się konto.
 3. Wklej aktualny klucz API.
 4. Kliknij **Wyszukaj**.
-5. Przełączaj się między zakładkami **Historia meczów** i **Analiza ranked**.
+5. Przełączaj się między zakładkami **Historia meczów**, **Analiza ranked** i **Statystyki**.
 6. Kliknij dwukrotnie wybrany mecz, aby otworzyć szczegółowe statystyki obu drużyn.
 
 Pobranie 30 szczegółowych meczów może potrwać kilka–kilkanaście sekund. Przy przekroczeniu limitu zapytań aplikacja wyświetli odpowiedni komunikat.
