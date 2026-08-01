@@ -26,6 +26,7 @@
     <Compile Include="LeagueOfLegendsAPP.py" />
     <Compile Include="models.py" />
     <Compile Include="riot_api.py" />
+    <Compile Include="storage.py" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in

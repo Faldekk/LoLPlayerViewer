@@ -12,6 +12,7 @@ from assets import DataDragonAssets
 from config import REGIONS
 from models import PlayerData
 from riot_api import RiotApiClient, RiotApiError
+from storage import FavoritesStore
 
 try:
     from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -56,6 +57,9 @@ class LolApp(tk.Tk):
         self.icon_photos: dict[tuple[str, str, int], object] = {}
         self.match_by_row: dict[str, dict] = {}
         self.current_matches: list[dict] = []
+        self.current_player: dict[str, str] | None = None
+        self.favorites_store = FavoritesStore()
+        self.favorites = self.favorites_store.load()
         self._configure_styles()
         self._build_ui()
 
@@ -144,6 +148,22 @@ class LolApp(tk.Tk):
             style="Subtitle.TLabel",
         ).pack(anchor="w", pady=(2, 0))
 
+        favorites_box = ttk.Frame(header)
+        favorites_box.pack(side="right", anchor="s")
+        ttk.Label(favorites_box, text="ULUBIENI", style="Eyebrow.TLabel").pack(anchor="w")
+        favorites_controls = ttk.Frame(favorites_box)
+        favorites_controls.pack(pady=(4, 0))
+        self.favorite_var = tk.StringVar()
+        self.favorite_combo = ttk.Combobox(
+            favorites_controls, textvariable=self.favorite_var,
+            state="readonly", width=29,
+        )
+        self.favorite_combo.pack(side="left")
+        self.favorite_combo.bind(
+            "<<ComboboxSelected>>", lambda _event: self._load_selected_favorite()
+        )
+        self._refresh_favorites()
+
         search = ttk.Frame(outer, style="Card.TFrame", padding=18)
         search.pack(fill="x", pady=(0, 16))
         self.riot_id_var = tk.StringVar()
@@ -203,6 +223,11 @@ class LolApp(tk.Tk):
         self.level_label.pack(anchor="w", pady=(3, 0))
         self.status_label = ttk.Label(profile, text="GOTOWE", style="Status.TLabel")
         self.status_label.pack(anchor="w", pady=(9, 0))
+        self.favorite_button = ttk.Button(
+            profile, text="☆ Dodaj do ulubionych", command=self._toggle_favorite
+        )
+        self.favorite_button.pack(anchor="w", pady=(8, 0))
+        self._update_favorite_button()
 
         self.rank_labels = []
         for index in range(2):
@@ -352,6 +377,63 @@ class LolApp(tk.Tk):
 
         self.riot_entry.focus_set()
 
+    @staticmethod
+    def _favorite_label(favorite: dict[str, str]) -> str:
+        return f"{favorite['riot_id']}  ·  {favorite['region']}"
+
+    def _refresh_favorites(self) -> None:
+        labels = [self._favorite_label(item) for item in self.favorites]
+        self.favorite_combo.configure(values=labels)
+        if self.favorite_var.get() not in labels:
+            self.favorite_var.set("")
+
+    def _current_favorite_index(self) -> int | None:
+        if not self.current_player:
+            return None
+        riot_id = self.current_player["riot_id"].casefold()
+        region = self.current_player["region"]
+        for index, favorite in enumerate(self.favorites):
+            if favorite["riot_id"].casefold() == riot_id and favorite["region"] == region:
+                return index
+        return None
+
+    def _update_favorite_button(self) -> None:
+        if not self.current_player:
+            self.favorite_button.configure(text="☆ Dodaj do ulubionych", state="disabled")
+        elif self._current_favorite_index() is None:
+            self.favorite_button.configure(text="☆ Dodaj do ulubionych", state="normal")
+        else:
+            self.favorite_button.configure(text="★ Usuń z ulubionych", state="normal")
+
+    def _toggle_favorite(self) -> None:
+        if not self.current_player:
+            return
+        index = self._current_favorite_index()
+        if index is None:
+            self.favorites.append(dict(self.current_player))
+            self.favorites.sort(key=lambda item: item["riot_id"].casefold())
+        else:
+            self.favorites.pop(index)
+        try:
+            self.favorites_store.save(self.favorites)
+        except OSError as error:
+            messagebox.showerror("Błąd zapisu", f"Nie udało się zapisać ulubionych:\n{error}")
+            self.favorites = self.favorites_store.load()
+        self._refresh_favorites()
+        self._update_favorite_button()
+
+    def _load_selected_favorite(self) -> None:
+        index = self.favorite_combo.current()
+        if index < 0 or index >= len(self.favorites):
+            return
+        favorite = self.favorites[index]
+        self.riot_id_var.set(favorite["riot_id"])
+        self.region_var.set(favorite["region"])
+        if self.api_key_var.get().strip():
+            self.search()
+        else:
+            self.api_key_entry.focus_set()
+
     def search(self) -> None:
         raw_id = self.riot_id_var.get().strip()
         if "#" not in raw_id:
@@ -409,6 +491,8 @@ class LolApp(tk.Tk):
         self._set_loading(False)
         self.player_label.configure(text=data.riot_id)
         self.level_label.configure(text=f"Poziom {data.level}")
+        self.current_player = {"riot_id": data.riot_id, "region": self.region_var.get()}
+        self._update_favorite_button()
         self._load_profile_icon(data.profile_icon_id)
 
         ranks_by_queue = {entry.get("queueType"): entry for entry in data.ranks}

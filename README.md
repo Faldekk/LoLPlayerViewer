@@ -11,6 +11,7 @@ Desktopowa aplikacja napisana w Pythonie, która pobiera dane gracza z oficjalne
 - tabela 30 ostatnich meczów,
 - wybór pobierania 10, 20, 30 lub 50 ostatnich meczów,
 - filtrowanie historii po trybie, wyniku i nazwie bohatera,
+- lokalna lista ulubionych graczy z szybkim ponownym wyszukiwaniem,
 - ikony profilu, bohaterów i przedmiotów z oficjalnego Data Dragon,
 - bohater, K/D/A, tryb gry, czas trwania i data każdego meczu,
 - szczegóły meczu otwierane dwuklikiem,
@@ -120,6 +121,7 @@ LoLPlayerViewer/
 │   ├── assets.py              # grafiki Data Dragon i cache
 │   ├── models.py              # modele danych
 │   ├── config.py              # regiony i kolejki
+│   ├── storage.py             # lokalny zapis ulubionych
 │   └── LeagueOfLegendsAPP.pyproj
 ├── LeagueOfLegendsAPP.sln
 ├── requirements.txt
@@ -132,6 +134,8 @@ LoLPlayerViewer/
 - Nie publikuj swojego klucza API.
 - Nie wpisuj prawdziwego klucza bezpośrednio do kodu.
 - Pliki `.env`, `config.json` i `secrets.json` są ignorowane przez Git.
+- Lista ulubionych zapisuje wyłącznie Riot ID i region w `%APPDATA%\LoLPlayerViewer`.
+- Klucz Riot API nigdy nie jest dodawany do pliku ulubionych.
 - Jeżeli klucz trafił do publicznego repozytorium, natychmiast wygeneruj nowy w Riot Developer Portal.
 
 ## Informacja prawna
