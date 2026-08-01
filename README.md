@@ -115,7 +115,11 @@ Pobranie 30 szczegółowych meczów może potrwać kilka–kilkanaście sekund. 
 ```text
 LoLPlayerViewer/
 ├── LeagueOfLegendsAPP/
-│   ├── LeagueOfLegendsAPP.py
+│   ├── LeagueOfLegendsAPP.py  # interfejs Tkinter
+│   ├── riot_api.py            # komunikacja z Riot API
+│   ├── assets.py              # grafiki Data Dragon i cache
+│   ├── models.py              # modele danych
+│   ├── config.py              # regiony i kolejki
 │   └── LeagueOfLegendsAPP.pyproj
 ├── LeagueOfLegendsAPP.sln
 ├── requirements.txt
