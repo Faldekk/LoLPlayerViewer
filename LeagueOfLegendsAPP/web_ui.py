@@ -20,6 +20,7 @@ except ImportError:
     )
 
 from assets import DataDragonAssets
+from api_config import load_api_key
 from config import REGIONS
 from live_client import LiveClient
 from riot_api import RiotApiClient, RiotApiError
@@ -31,9 +32,14 @@ class AppBridge:
         self.store = FavoritesStore()
         self.live_client: RiotApiClient | None = None
         self.live_puuid = ""
+        self.rank_cache: dict[str, list[dict]] = {}
 
     def bootstrap(self) -> dict:
-        return {"regions": list(REGIONS), "favorites": self.store.load()}
+        return {
+            "regions": list(REGIONS),
+            "favorites": self.store.load(),
+            "api_key": load_api_key(),
+        }
 
     def search(
         self, riot_id: str, region_name: str, api_key: str, match_count: int = 30
@@ -54,6 +60,7 @@ class AppBridge:
             client = RiotApiClient(api_key, platform, regional)
             player = client.load_player(game_name, tag_line, int(match_count))
             self.live_client, self.live_puuid = client, player.puuid
+            self.rank_cache.clear()
             try:
                 version = DataDragonAssets.get_version()
                 champion_map = DataDragonAssets.get_champion_map()
@@ -77,6 +84,21 @@ class AppBridge:
 
     def local_live_stats(self) -> dict:
         return {"ok": True, "live_stats": LiveClient.load()}
+
+    def participant_ranks(self, puuids: list[str]) -> dict:
+        if self.live_client is None:
+            return {"ok": False, "error": "Najpierw wyszukaj gracza."}
+        unique = list(dict.fromkeys(value for value in puuids if value))[:10]
+        try:
+            for puuid in unique:
+                if puuid not in self.rank_cache:
+                    self.rank_cache[puuid] = self.live_client.load_ranks(puuid)
+        except RiotApiError as error:
+            return {"ok": False, "error": str(error)}
+        return {
+            "ok": True,
+            "ranks": {puuid: self.rank_cache.get(puuid, []) for puuid in unique},
+        }
 
     def toggle_favorite(self, riot_id: str, region: str) -> dict:
         favorites = self.store.load()

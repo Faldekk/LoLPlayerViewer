@@ -143,6 +143,13 @@ class RiotApiClient:
             ],
         }
 
+    def load_ranks(self, puuid: str) -> list[dict]:
+        ranks = self._get(
+            self.platform,
+            f"/lol/league/v4/entries/by-puuid/{self._quote(puuid)}",
+        )
+        return ranks if isinstance(ranks, list) else []
+
     @staticmethod
     def _summarize_match(info: dict, participant: dict) -> dict:
         duration = int(info.get("gameDuration", 0))
@@ -181,6 +188,7 @@ class RiotApiClient:
         )
         tag_line = participant.get("riotIdTagline")
         return {
+            "puuid": participant.get("puuid", ""),
             "riot_id": f"{game_name}#{tag_line}" if tag_line else game_name,
             "champion": participant.get("championName", "?"),
             "kills": int(participant.get("kills", 0)),

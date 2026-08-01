@@ -88,6 +88,18 @@ W Visual Studio jako interpreter projektu wybierz:
 
 W Visual Studio plik `web_ui.py` jest ustawiony jako domyślny plik startowy.
 
+## Lokalny plik z kluczem API
+
+Skopiuj `config.example.json` jako `config.json`, a następnie wpisz klucz:
+
+```json
+{
+  "riot_api_key": "RGAPI-TWOJ-KLUCZ"
+}
+```
+
+`config.json` jest wpisany do `.gitignore` i nie zostanie wysłany do GitHub. Do repozytorium trafia wyłącznie bezpieczny szablon `config.example.json`, który nie zawiera prawdziwego sekretu. Klucz zapisany w JSON pozostaje jawnym tekstem na lokalnym komputerze, dlatego pliku nie należy przesyłać ani udostępniać.
+
 ## Klucz Riot API
 
 1. Zaloguj się na [Riot Developer Portal](https://developer.riotgames.com/).

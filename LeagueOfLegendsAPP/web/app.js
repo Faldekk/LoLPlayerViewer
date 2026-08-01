@@ -10,6 +10,7 @@ window.addEventListener('pywebviewready', async () => {
   const data = await window.pywebview.api.bootstrap();
   data.regions.forEach(region => $('region').add(new Option(region, region)));
   state.favorites = data.favorites;
+  if(data.api_key)$('apiKey').value=data.api_key;
   renderFavorites();
 });
 
@@ -174,10 +175,23 @@ function renderStats(){
   $('championStats').innerHTML=Object.entries(champs).sort((a,b)=>b[1].games-a[1].games).slice(0,10).map(([name,s])=>`<div class="champ-stat"><span class="champ-main"><img src="${asset('champion',name)}">${esc(name)}</span><span>${s.games} gier</span><span>${s.wins} W / ${s.games-s.wins} L</span><span>${Math.round(s.wins/s.games*100)}% WR</span><span>${((s.kills+s.assists)/Math.max(1,s.deaths)).toFixed(2)} KDA</span></div>`).join('');
 }
 
-function openDetails(match){
+async function openDetails(match){
   const teams=[...new Set(match.participants.map(p=>p.team_id))].slice(0,2);
-  $('modalContent').innerHTML=`<div class="modal-title"><div class="eyebrow">${esc(match.result.toUpperCase())}</div><h2>${esc(match.champion)} · ${match.kills} / ${match.deaths} / ${match.assists}</h2><p>${esc(match.queue)} · ${esc(match.duration)} · ${esc(match.date)}</p></div><div class="teams">${teams.map((id,i)=>{const players=match.participants.filter(p=>p.team_id===id),won=players[0]?.win;return `<section class="team"><h4 style="color:${won?'#35d6a2':'#ff6382'}">DRUŻYNA ${i+1} · ${won?'ZWYCIĘSTWO':'PORAŻKA'}</h4>${players.map(p=>`<div class="participant"><img src="${asset('champion',p.champion)}"><div><strong>${esc(p.riot_id)}</strong><small>${esc(p.champion)} · ${p.kills}/${p.deaths}/${p.assists} · ${p.cs} CS · ${number(p.damage)} DMG</small></div><div class="items">${p.items.map(id=>`<img src="${asset('item',id)}">`).join('')}</div></div>`).join('')}</section>`}).join('')}</div>`;
+  $('modalContent').innerHTML=`<div class="modal-title"><div class="eyebrow">${esc(match.result.toUpperCase())}</div><h2>${esc(match.champion)} · ${match.kills} / ${match.deaths} / ${match.assists}</h2><p>${esc(match.queue)} · ${esc(match.duration)} · ${esc(match.date)}</p></div><div class="teams">${teams.map((id,i)=>{const players=match.participants.filter(p=>p.team_id===id),won=players[0]?.win;return `<section class="team"><h4 style="color:${won?'#35d6a2':'#ff6382'}">DRUŻYNA ${i+1} · ${won?'ZWYCIĘSTWO':'PORAŻKA'}</h4>${players.map(p=>`<div class="participant"><img src="${asset('champion',p.champion)}"><div><strong>${esc(p.riot_id)}</strong><small>${esc(p.champion)} · ${p.kills}/${p.deaths}/${p.assists} · ${p.cs} CS · ${number(p.damage)} DMG</small><span class="participant-rank" data-rank-puuid="${esc(p.puuid||'')}">${p.puuid?'Pobieranie aktualnej rangi…':'Ranga niedostępna'}</span></div><div class="items">${p.items.map(id=>`<img src="${asset('item',id)}">`).join('')}</div></div>`).join('')}</section>`}).join('')}</div>`;
   $('modal').classList.remove('hidden');
+  const puuids=match.participants.map(p=>p.puuid).filter(Boolean);
+  if(!puuids.length)return;
+  const result=await window.pywebview.api.participant_ranks(puuids);
+  if(!result.ok){document.querySelectorAll('.participant-rank').forEach(node=>node.textContent='Nie udało się pobrać rangi');return;}
+  document.querySelectorAll('[data-rank-puuid]').forEach(node=>{node.textContent=formatRanks(result.ranks[node.dataset.rankPuuid]||[])});
+}
+
+function formatRanks(ranks){
+  const format=rank=>`${title(rank.tier)} ${rank.rank} · ${rank.leaguePoints} LP`;
+  const solo=ranks.find(rank=>rank.queueType==='RANKED_SOLO_5x5');
+  const flex=ranks.find(rank=>rank.queueType==='RANKED_FLEX_SR');
+  if(!solo&&!flex)return 'Aktualna ranga: Unranked';
+  return [solo&&`Solo: ${format(solo)}`,flex&&`Flex: ${format(flex)}`].filter(Boolean).join(' · ');
 }
 
 async function toggleFavorite(){
