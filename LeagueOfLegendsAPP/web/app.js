@@ -1,5 +1,5 @@
 const $ = id => document.getElementById(id);
-const state = { player: null, matches: [], version: null, favorites: [], region: '' };
+const state = { player: null, matches: [], version: null, favorites: [], region: '', chartPoints: [] };
 const queueGroups = { Ranked:[420,440], Normal:[400,430,490], ARAM:[450], Arena:[1700,1750] };
 const esc = value => String(value ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
 const number = value => new Intl.NumberFormat('pl-PL').format(value || 0);
@@ -79,15 +79,49 @@ function renderChart(){
   const matches=state.matches.filter(m=>[420,440].includes(m.queue_id)).reverse(), canvas=$('kdaChart'), box=canvas.parentElement;
   const scale=window.devicePixelRatio||1,w=box.clientWidth-40,h=box.clientHeight-40; canvas.width=w*scale; canvas.height=h*scale;
   const ctx=canvas.getContext('2d'); ctx.scale(scale,scale); ctx.clearRect(0,0,w,h);
-  if(!matches.length){ctx.fillStyle='#8e98b3';ctx.font='14px Segoe UI';ctx.fillText('Brak gier rankingowych w pobranym zestawie.',25,40);return;}
+  state.chartPoints=[];
+  if(!matches.length){ctx.fillStyle='#8e98b3';ctx.font='14px Segoe UI';ctx.fillText('Brak gier rankingowych w pobranym zestawie.',25,40);hideChartTooltip();return;}
   const values=matches.map(kda),max=Math.max(4,...values)*1.12,pad={l:42,r:20,t:28,b:38},cw=w-pad.l-pad.r,ch=h-pad.t-pad.b;
   ctx.strokeStyle='#272f48';ctx.fillStyle='#8e98b3';ctx.font='11px Segoe UI';ctx.lineWidth=1;
   for(let i=0;i<=4;i++){const y=pad.t+ch*i/4;ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(w-pad.r,y);ctx.stroke();ctx.fillText((max*(1-i/4)).toFixed(1),4,y+4)}
   const point=(v,i)=>({x:pad.l+(matches.length===1?cw/2:cw*i/(matches.length-1)),y:pad.t+ch*(1-v/max)});
   ctx.strokeStyle='#806cff';ctx.lineWidth=3;ctx.beginPath();values.forEach((v,i)=>{const p=point(v,i);i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y)});ctx.stroke();
-  values.forEach((v,i)=>{const p=point(v,i);ctx.fillStyle=matches[i].result==='Wygrana'?'#35d6a2':'#ff6382';ctx.beginPath();ctx.arc(p.x,p.y,5,0,Math.PI*2);ctx.fill()});
+  state.chartPoints=values.map((v,i)=>({...point(v,i),match:matches[i]}));
+  state.chartPoints.forEach(({x,y,match})=>{ctx.fillStyle=match.result==='Wygrana'?'#35d6a2':'#ff6382';ctx.beginPath();ctx.arc(x,y,5,0,Math.PI*2);ctx.fill()});
   const wins=matches.filter(m=>m.result==='Wygrana').length;$('rankedSummary').textContent=`${wins} W · ${matches.length-wins} L · ${Math.round(wins/matches.length*100)}% WR`;
 }
+
+const chartTooltip=document.createElement('div');
+chartTooltip.className='chart-tooltip hidden';
+document.body.appendChild(chartTooltip);
+
+function chartPointAt(event){
+  const canvas=$('kdaChart'),rect=canvas.getBoundingClientRect();
+  const x=(event.clientX-rect.left)*(canvas.width/(window.devicePixelRatio||1))/rect.width;
+  const y=(event.clientY-rect.top)*(canvas.height/(window.devicePixelRatio||1))/rect.height;
+  let nearest=null,distance=Infinity;
+  state.chartPoints.forEach(point=>{const d=Math.hypot(point.x-x,point.y-y);if(d<distance){nearest=point;distance=d}});
+  return distance<=14?nearest:null;
+}
+
+function showChartTooltip(event,match){
+  const won=match.result==='Wygrana';
+  chartTooltip.innerHTML=`<div class="tooltip-head"><img src="${asset('champion',match.champion)}" alt=""><div><strong>${esc(match.champion)}</strong><span class="${won?'tooltip-win':'tooltip-loss'}">${esc(match.result)}</span></div></div><div class="tooltip-kda">${match.kills} / ${match.deaths} / ${match.assists} <span>${kda(match).toFixed(2)} KDA</span></div><div class="tooltip-stats"><span>${match.cs||0} CS</span><span>${number(match.damage)} DMG</span></div><div class="tooltip-meta">${esc(match.queue)} · ${esc(match.duration)}<br>${esc(match.date)}</div><div class="tooltip-hint">Kliknij, aby zobaczyć szczegóły</div>`;
+  chartTooltip.classList.remove('hidden');
+  const gap=16,tip=chartTooltip.getBoundingClientRect();
+  chartTooltip.style.left=`${Math.min(window.innerWidth-tip.width-gap,event.clientX+gap)}px`;
+  chartTooltip.style.top=`${Math.max(gap,Math.min(window.innerHeight-tip.height-gap,event.clientY-tip.height/2))}px`;
+}
+
+function hideChartTooltip(){chartTooltip.classList.add('hidden')}
+
+$('kdaChart').addEventListener('mousemove',event=>{
+  const point=chartPointAt(event);
+  $('kdaChart').style.cursor=point?'pointer':'default';
+  point?showChartTooltip(event,point.match):hideChartTooltip();
+});
+$('kdaChart').addEventListener('mouseleave',hideChartTooltip);
+$('kdaChart').addEventListener('click',event=>{const point=chartPointAt(event);if(point)openDetails(point.match)});
 
 function renderStats(){
   const games=state.matches.length,wins=state.matches.filter(m=>m.result==='Wygrana').length;
