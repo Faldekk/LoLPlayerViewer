@@ -45,7 +45,7 @@ class AppBridge:
         self, riot_id: str, region_name: str, api_key: str, match_count: int = 30
     ) -> dict:
         riot_id = riot_id.strip()
-        api_key = api_key.strip()
+        api_key = load_api_key() or api_key.strip()
         if "#" not in riot_id:
             return {"ok": False, "error": "Wpisz Riot ID w formacie Nazwa#TAG."}
         if region_name not in REGIONS:
@@ -107,7 +107,7 @@ class AppBridge:
     def compare_player(
         self, riot_id: str, region_name: str, api_key: str, match_count: int = 20
     ) -> dict:
-        riot_id, api_key = riot_id.strip(), api_key.strip()
+        riot_id, api_key = riot_id.strip(), load_api_key() or api_key.strip()
         if "#" not in riot_id:
             return {"ok": False, "error": "Wpisz drugie Riot ID w formacie Nazwa#TAG."}
         if region_name not in REGIONS or not api_key:

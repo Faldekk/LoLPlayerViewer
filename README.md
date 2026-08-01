@@ -114,6 +114,8 @@ Skopiuj `config.example.json` jako `config.json`, a następnie wpisz klucz:
 
 `config.json` jest wpisany do `.gitignore` i nie zostanie wysłany do GitHub. Do repozytorium trafia wyłącznie bezpieczny szablon `config.example.json`, który nie zawiera prawdziwego sekretu. Klucz zapisany w JSON pozostaje jawnym tekstem na lokalnym komputerze, dlatego pliku nie należy przesyłać ani udostępniać.
 
+Klucz z `config.json` ma pierwszeństwo przed wartością wpisaną w Ustawieniach. Jeśli pliku lub klucza nie ma, aplikacja użyje zamaskowanego pola w interfejsie.
+
 ## Klucz Riot API
 
 1. Zaloguj się na [Riot Developer Portal](https://developer.riotgames.com/).
