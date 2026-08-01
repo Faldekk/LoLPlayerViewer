@@ -119,7 +119,7 @@ Skopiuj `config.example.json` jako `config.json`, a następnie wpisz klucz:
 1. Zaloguj się na [Riot Developer Portal](https://developer.riotgames.com/).
 2. Skopiuj klucz zaczynający się od `RGAPI-`.
 3. Uruchom LoL Player Viewer.
-4. Wklej klucz w zamaskowane pole **Klucz Riot API**.
+4. Otwórz **Ustawienia** i wklej klucz w zamaskowane pole **Klucz Riot API**.
 
 Klucz jest przechowywany wyłącznie w pamięci podczas działania programu. Nie jest zapisywany na dysku ani wysyłany do repozytorium.
 

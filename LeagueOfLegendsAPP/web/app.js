@@ -27,6 +27,7 @@ $('chartMetric').addEventListener('change',renderChart);
 $('compareBtn').addEventListener('click',comparePlayers);
 $('compareRiotId').addEventListener('keydown',event=>{if(event.key==='Enter')comparePlayers()});
 $('saveSettingsBtn').addEventListener('click',saveSettings);
+$('toggleApiKey').addEventListener('click',()=>{const input=$('apiKey'),visible=input.type==='text';input.type=visible?'password':'text';$('toggleApiKey').textContent=visible?'Pokaż':'Ukryj'});
 ['queueFilter','resultFilter','championFilter'].forEach(id => $(id).addEventListener(id==='championFilter'?'input':'change', renderHistory));
 document.querySelectorAll('.nav-item').forEach(button => button.addEventListener('click', () => showTab(button.dataset.tab)));
 $('favoritesSelect').addEventListener('change', () => {
@@ -38,6 +39,7 @@ $('favoritesSelect').addEventListener('change', () => {
 });
 
 async function search(){
+  if(!$('apiKey').value.trim()){showTab('settings');showError('Dodaj klucz Riot API w Ustawieniach.');return;}
   hideError(); $('loader').classList.remove('hidden'); $('searchBtn').disabled=true;
   try {
     const result = await window.pywebview.api.search($('riotId').value,$('region').value,$('apiKey').value,Number($('matchCount').value));
