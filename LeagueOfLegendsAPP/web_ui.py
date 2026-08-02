@@ -4,6 +4,7 @@ from dataclasses import asdict
 import os
 from pathlib import Path
 import sys
+import time
 
 try:
     import webview
@@ -34,6 +35,7 @@ class AppBridge:
         self.live_client: RiotApiClient | None = None
         self.live_puuid = ""
         self.rank_cache: dict[str, list[dict]] = {}
+        self.live_insight_cache: dict[tuple[str, int], tuple[float, dict]] = {}
 
     def bootstrap(self) -> dict:
         remembered_key = self.key_store.load()
@@ -112,6 +114,31 @@ class AppBridge:
 
     def local_live_stats(self) -> dict:
         return {"ok": True, "live_stats": LiveClient.load()}
+
+    def live_player_insights(self, participants: list[dict]) -> dict:
+        if self.live_client is None:
+            return {"ok": False, "error": "Najpierw wyszukaj gracza."}
+        insights = []
+        now = time.monotonic()
+        try:
+            for item in participants[:10]:
+                puuid = str(item.get("puuid", "")).strip()
+                champion_id = int(item.get("champion_id", 0) or 0)
+                if not puuid or champion_id <= 0:
+                    continue
+                key = (puuid, champion_id)
+                cached = self.live_insight_cache.get(key)
+                if cached and cached[0] > now:
+                    insight = cached[1]
+                else:
+                    insight = self.live_client.load_live_player_insight(
+                        puuid, champion_id, 5
+                    )
+                    self.live_insight_cache[key] = (now + 300, insight)
+                insights.append(insight)
+        except RiotApiError as error:
+            return self._api_error(error, self.live_client.api_key)
+        return {"ok": True, "insights": insights}
 
     def participant_ranks(self, puuids: list[str]) -> dict:
         if self.live_client is None:

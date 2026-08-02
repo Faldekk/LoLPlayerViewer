@@ -156,6 +156,48 @@ class RiotApiClient:
         )
         return ranks if isinstance(ranks, list) else []
 
+    def load_live_player_insight(
+        self, puuid: str, champion_id: int, match_count: int = 5
+    ) -> dict:
+        """Analizuje krótką formę uczestnika aktywnego meczu."""
+        match_ids = self._get(
+            self.regional,
+            f"/lol/match/v5/matches/by-puuid/{self._quote(puuid)}/ids"
+            f"?start=0&count={max(1, min(5, int(match_count)))}",
+        )
+        results: list[bool] = []
+        champion_games = 0
+        for match_id in match_ids if isinstance(match_ids, list) else []:
+            match = self._get(
+                self.regional, f"/lol/match/v5/matches/{self._quote(match_id)}"
+            )
+            participant = next(
+                (
+                    item for item in match.get("info", {}).get("participants", [])
+                    if item.get("puuid") == puuid
+                ),
+                None,
+            )
+            if not participant:
+                continue
+            results.append(bool(participant.get("win")))
+            if int(participant.get("championId", 0) or 0) == int(champion_id):
+                champion_games += 1
+        streak_count = 0
+        if results:
+            first_result = results[0]
+            streak_count = next(
+                (index for index, result in enumerate(results) if result != first_result),
+                len(results),
+            )
+        return {
+            "puuid": puuid,
+            "streak_result": "W" if results and results[0] else "L" if results else "—",
+            "streak_count": streak_count,
+            "champion_games": champion_games,
+            "sample_size": len(results),
+        }
+
     @staticmethod
     def _summarize_match(info: dict, participant: dict) -> dict:
         duration = int(info.get("gameDuration", 0))

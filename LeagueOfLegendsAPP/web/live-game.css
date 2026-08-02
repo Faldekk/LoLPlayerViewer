@@ -17,6 +17,7 @@
 .live-player small { color: var(--muted); }
 .live-spells { display: flex; gap: 3px; }
 .live-spells img { width: 25px; height: 25px; border-radius: 5px; }
+.live-insight { display:flex!important;gap:7px;align-items:center;margin-top:5px!important;font-size:9px!important;color:var(--muted)!important }.live-insight b{font-size:10px}.live-insight .streak-win{color:var(--green)}.live-insight .streak-loss{color:var(--red)}.live-insight.loading{opacity:.7}
 .live-gold { margin-top: 2px; color: var(--muted); font-size: 10px; text-align: right; }
 .live-stat-player { position: relative; display: grid; grid-template-columns: 45px minmax(110px,1fr) auto minmax(90px,auto); gap: 10px; align-items: center; min-height: 68px; padding: 9px 12px; border-top: 1px solid var(--line); }
 .live-stat-player.target { background: #806cff12; box-shadow: inset 3px 0 var(--purple); }

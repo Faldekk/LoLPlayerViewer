@@ -38,6 +38,8 @@ Jeśli LoL działa na tym samym komputerze i wyszukane Riot ID należy do aktywn
 - wykrywanie serii zwycięstw lub porażek oraz wizualizacja ostatnich 10 wyników,
 - trwałe ustawienia motywu, koloru akcentu, regionu, liczby meczów i live refresh.
 - interaktywne tooltipy itemów z polskim opisem, ceną zakupu i sprzedaży,
+- tooltipy wyników W/L z pełnymi statystykami wskazanego meczu,
+- forma uczestników Live Game: streak oraz gry obecnym championem w ostatnich 5 meczach,
 
 ## Wymagania
 

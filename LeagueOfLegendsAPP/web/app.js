@@ -1,7 +1,7 @@
 const $ = id => document.getElementById(id);
 const defaultSettings={theme:'dark',accent:'purple',region:'Europa Pn.-Wsch. (EUNE)',matches:'30',liveRefresh:'5',compact:false};
 const savedSettings=(()=>{try{return {...defaultSettings,...JSON.parse(localStorage.getItem('lpvSettings')||'{}')}}catch{return {...defaultSettings}}})();
-const state = { player: null, matches: [], version: null, favorites: [], region: '', chartPoints: [], championMap: {}, itemMap: {}, liveFetchedAt: 0, localLive: null, localFetchedAt: 0, settings:savedSettings };
+const state = { player: null, matches: [], version: null, favorites: [], region: '', chartPoints: [], championMap: {}, itemMap: {}, liveFetchedAt: 0, localLive: null, localFetchedAt: 0, liveInsights:{}, settings:savedSettings };
 const queueGroups = { Ranked:[420,440], Normal:[400,430,490], ARAM:[450], Arena:[1700,1750] };
 const spellNames = {1:'SummonerBoost',3:'SummonerExhaust',4:'SummonerFlash',6:'SummonerHaste',7:'SummonerHeal',11:'SummonerSmite',12:'SummonerTeleport',14:'SummonerDot',21:'SummonerBarrier',32:'SummonerSnowball'};
 const esc = value => String(value ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
@@ -23,7 +23,7 @@ $('riotId').addEventListener('keydown', event => { if (event.key === 'Enter') se
 $('modalClose').addEventListener('click', () => $('modal').classList.add('hidden'));
 $('modal').addEventListener('click', event => { if (event.target === $('modal')) $('modal').classList.add('hidden'); });
 $('favoriteBtn').addEventListener('click', toggleFavorite);
-$('refreshLiveBtn').addEventListener('click', async()=>{await refreshLiveGame();await refreshLocalLiveStats()});
+$('refreshLiveBtn').addEventListener('click', async()=>{await refreshLiveGame();await refreshLocalLiveStats();await refreshLiveInsights()});
 $('chartMetric').addEventListener('change',renderChart);
 $('compareBtn').addEventListener('click',comparePlayers);
 $('compareRiotId').addEventListener('keydown',event=>{if(event.key==='Enter')comparePlayers()});
@@ -45,7 +45,7 @@ async function search(){
   try {
     const result = await window.pywebview.api.search($('riotId').value,$('region').value,$('apiKey').value,Number($('matchCount').value));
     if(!result.ok){if(result.api_key_invalid)requestNewApiKey(result.error);else showError(result.error);return;}
-    state.player=result.player; state.matches=result.player.matches; state.version=result.ddragon_version; state.championMap=result.champion_map||{}; state.itemMap=result.item_map||{}; state.region=$('region').value; state.liveFetchedAt=Date.now();
+    state.player=result.player; state.matches=result.player.matches; state.version=result.ddragon_version; state.championMap=result.champion_map||{}; state.itemMap=result.item_map||{}; state.liveInsights={}; state.region=$('region').value; state.liveFetchedAt=Date.now();
     renderDashboard();
     $('apiKeyStatus').textContent='Klucz zweryfikowany i zapisany lokalnie.';
   } catch(error){ showError(`Nie udało się uruchomić wyszukiwania: ${error}`); }
@@ -75,12 +75,35 @@ function renderLiveGame(){
   const game=state.player?.live_game,content=$('liveGameContent');
   if(!game){content.innerHTML='<div class="live-empty"><strong>Gracz nie jest teraz w meczu</strong><span>Użyj „Odśwież”, aby sprawdzić ponownie.</span></div>';return;}
   const teams=[100,200];
-  content.innerHTML=`<div class="live-header"><div><div class="live-indicator">● MECZ NA ŻYWO</div><strong>${esc(game.game_mode)} · ${esc(game.queue_id||'Tryb niestandardowy')}</strong></div><div id="liveClock" class="live-clock">${formatClock(liveDuration())}</div></div><div class="live-teams">${teams.map((teamId,index)=>`<section class="live-team ${index?'red':'blue'}"><h4>${index?'CZERWONA':'NIEBIESKA'} DRUŻYNA</h4>${game.participants.filter(p=>p.team_id===teamId).map(p=>{const champ=championName(p.champion_id),target=p.puuid===state.player.puuid;return `<div class="live-player ${target?'target':''}"><img src="${asset('champion',champ)}" alt=""><div><strong>${esc(p.riot_id)}${target?' · SZUKANY GRACZ':''}</strong><small>${esc(champ)}${p.bot?' · Bot':''}</small></div><div class="live-spells">${[p.spell1_id,p.spell2_id].map(id=>spellIcon(id)?`<img src="${spellIcon(id)}" title="Spell ${id}">`:'').join('')}</div></div>`}).join('')}</section>`).join('')}</div>`;
+  content.innerHTML=`<div class="live-header"><div><div class="live-indicator">● MECZ NA ŻYWO</div><strong>${esc(game.game_mode)} · ${esc(game.queue_id||'Tryb niestandardowy')}</strong></div><div id="liveClock" class="live-clock">${formatClock(liveDuration())}</div></div><div class="live-teams">${teams.map((teamId,index)=>`<section class="live-team ${index?'red':'blue'}"><h4>${index?'CZERWONA':'NIEBIESKA'} DRUŻYNA</h4>${game.participants.filter(p=>p.team_id===teamId).map(p=>{const champ=championName(p.champion_id),target=p.puuid===state.player.puuid;return `<div class="live-player ${target?'target':''}"><img src="${asset('champion',champ)}" alt=""><div><strong>${esc(p.riot_id)}${target?' · SZUKANY GRACZ':''}</strong><small>${esc(champ)}${p.bot?' · Bot':''}</small>${renderLiveInsight(state.liveInsights[p.puuid])}</div><div class="live-spells">${[p.spell1_id,p.spell2_id].map(id=>spellIcon(id)?`<img src="${spellIcon(id)}" title="Spell ${id}">`:'').join('')}</div></div>`}).join('')}</section>`).join('')}</div>`;
 }
 
 function renderLocalLiveStats(){
   const live=state.localLive,content=$('liveGameContent'),teams=['ORDER','CHAOS'];
-  content.innerHTML=`<div class="live-header"><div><div class="live-indicator">● LIVE STATS · TEN KOMPUTER</div><strong>${esc(live.game_mode)} · statystyki odświeżane co 5 sekund</strong></div><div><div id="liveClock" class="live-clock">${formatClock(liveDuration())}</div><div class="live-gold">${number(live.current_gold)} GOLD</div></div></div><div class="live-teams">${teams.map((team,index)=>`<section class="live-team ${index?'red':'blue'}"><h4>${index?'CZERWONA':'NIEBIESKA'} DRUŻYNA</h4>${live.players.filter(p=>p.team===team).map(p=>{const active=p.riot_id.toLowerCase()===live.active_riot_id.toLowerCase();return `<div class="live-stat-player ${active?'target':''}"><img class="live-champion" src="${asset('champion',p.champion)}" alt=""><div class="live-player-name"><strong>${esc(p.riot_id)}${active?' · TY':''}</strong><small>${esc(p.champion)} · ${esc(p.position||'Pozycja nieznana')} · lvl ${p.level}</small></div><div class="live-score"><strong>${p.kills} / ${p.deaths} / ${p.assists}</strong><small>${p.cs} CS · ${p.vision} vision</small></div><div class="live-items">${p.items.map(id=>`<img src="${asset('item',id)}" data-item-id="${id}" alt="">`).join('')}</div>${p.is_dead?`<span class="dead-badge">Odrodzenie: ${p.respawn}s</span>`:''}</div>`}).join('')}</section>`).join('')}</div>`;
+  content.innerHTML=`<div class="live-header"><div><div class="live-indicator">● LIVE STATS · TEN KOMPUTER</div><strong>${esc(live.game_mode)} · statystyki odświeżane co 5 sekund</strong></div><div><div id="liveClock" class="live-clock">${formatClock(liveDuration())}</div><div class="live-gold">${number(live.current_gold)} GOLD</div></div></div><div class="live-teams">${teams.map((team,index)=>`<section class="live-team ${index?'red':'blue'}"><h4>${index?'CZERWONA':'NIEBIESKA'} DRUŻYNA</h4>${live.players.filter(p=>p.team===team).map(p=>{const active=p.riot_id.toLowerCase()===live.active_riot_id.toLowerCase(),insight=liveInsightByRiotId(p.riot_id);return `<div class="live-stat-player ${active?'target':''}"><img class="live-champion" src="${asset('champion',p.champion)}" alt=""><div class="live-player-name"><strong>${esc(p.riot_id)}${active?' · TY':''}</strong><small>${esc(p.champion)} · ${esc(p.position||'Pozycja nieznana')} · lvl ${p.level}</small>${renderLiveInsight(insight)}</div><div class="live-score"><strong>${p.kills} / ${p.deaths} / ${p.assists}</strong><small>${p.cs} CS · ${p.vision} vision</small></div><div class="live-items">${p.items.map(id=>`<img src="${asset('item',id)}" data-item-id="${id}" alt="">`).join('')}</div>${p.is_dead?`<span class="dead-badge">Odrodzenie: ${p.respawn}s</span>`:''}</div>`}).join('')}</section>`).join('')}</div>`;
+}
+
+function renderLiveInsight(insight){
+  if(!insight)return '<small class="live-insight loading">Analizowanie ostatnich gier…</small>';
+  const result=insight.streak_result,streak=result==='—'?'Brak historii':`${insight.streak_count}${result}`;
+  return `<small class="live-insight"><b class="${result==='W'?'streak-win':result==='L'?'streak-loss':''}">${streak}</b><span>${insight.champion_games}/${insight.sample_size} gier tym championem</span></small>`;
+}
+
+function liveInsightByRiotId(riotId){
+  const game=state.player?.live_game,participant=game?.participants.find(p=>String(p.riot_id).toLowerCase()===String(riotId).toLowerCase());
+  return participant?state.liveInsights[participant.puuid]:null;
+}
+
+async function refreshLiveInsights(){
+  const participants=state.player?.live_game?.participants||[];
+  if(!participants.length)return;
+  try{
+    const payload=participants.map(p=>({puuid:p.puuid,champion_id:p.champion_id}));
+    const result=await window.pywebview.api.live_player_insights(payload);
+    if(!result.ok){if(result.api_key_invalid)requestNewApiKey(result.error);else showError(result.error);return;}
+    state.liveInsights=Object.fromEntries(result.insights.map(item=>[item.puuid,item]));
+    renderLiveGame();
+  }catch(error){showError(`Nie udało się pobrać formy graczy: ${error}`)}
 }
 
 async function refreshLocalLiveStats(){
@@ -175,6 +198,22 @@ document.addEventListener('mousemove',event=>{
   if(image){showItemTooltip(event,image.dataset.itemId)}else{itemTooltip.classList.add('hidden');activeItemId=''}
 });
 
+const formMatchTooltip=document.createElement('div');
+formMatchTooltip.className='form-match-tooltip hidden';
+document.body.appendChild(formMatchTooltip);
+let activeFormMatch='';
+
+document.addEventListener('mousemove',event=>{
+  const dot=event.target.closest?.('[data-form-match-index]');
+  if(!dot){formMatchTooltip.classList.add('hidden');activeFormMatch='';return;}
+  const index=Number(dot.dataset.formMatchIndex),match=state.matches[index];if(!match)return;
+  if(activeFormMatch!==String(index)){
+    activeFormMatch=String(index);const won=match.result==='Wygrana';
+    formMatchTooltip.innerHTML=`<div class="tooltip-head"><img src="${asset('champion',match.champion)}" alt=""><div><strong>${esc(match.champion)}</strong><span class="${won?'tooltip-win':'tooltip-loss'}">${esc(match.result)}</span></div></div><div class="tooltip-kda">${match.kills} / ${match.deaths} / ${match.assists}<span>${kda(match).toFixed(2)} KDA</span></div><div class="tooltip-stats"><span>${match.cs} CS</span><span>${number(match.damage)} DMG</span></div><div class="tooltip-meta">${esc(match.queue)} · ${esc(match.duration)}<br>${esc(match.date)}</div>`;
+  }
+  formMatchTooltip.classList.remove('hidden');const gap=14,tip=formMatchTooltip.getBoundingClientRect();formMatchTooltip.style.left=`${Math.max(gap,Math.min(window.innerWidth-tip.width-gap,event.clientX+gap))}px`;formMatchTooltip.style.top=`${Math.max(gap,Math.min(window.innerHeight-tip.height-gap,event.clientY+gap))}px`;
+});
+
 function chartPointAt(event){
   const canvas=$('kdaChart'),rect=canvas.getBoundingClientRect();
   const x=(event.clientX-rect.left)*(canvas.width/(window.devicePixelRatio||1))/rect.width;
@@ -226,7 +265,7 @@ function renderFormStats(){
   if(!state.matches.length){$('formStats').innerHTML='<span class="subtext">Brak meczów do analizy.</span>';return;}
   const first=state.matches[0]?.result,current=state.matches.findIndex(m=>m.result!==first),streak=current<0?state.matches.length:current;
   const last10=state.matches.slice(0,10),wins=last10.filter(m=>m.result==='Wygrana').length;
-  $('formStats').innerHTML=`<div class="form-hero"><strong>${streak} ${first==='Wygrana'?'zwycięstwa':'porażki'} z rzędu</strong><span>Ostatnie ${last10.length} gier: ${wins} W / ${last10.length-wins} L · ${last10.length?Math.round(wins/last10.length*100):0}% WR</span></div><div class="form-sequence">${[...last10].reverse().map(m=>`<span class="form-dot ${m.result==='Wygrana'?'win':'loss'}" title="${esc(m.champion)}">${m.result==='Wygrana'?'W':'L'}</span>`).join('')}</div>`;
+  $('formStats').innerHTML=`<div class="form-hero"><strong>${streak} ${first==='Wygrana'?'zwycięstwa':'porażki'} z rzędu</strong><span>Ostatnie ${last10.length} gier: ${wins} W / ${last10.length-wins} L · ${last10.length?Math.round(wins/last10.length*100):0}% WR</span></div><div class="form-sequence">${[...last10].reverse().map(m=>`<span class="form-dot ${m.result==='Wygrana'?'win':'loss'}" data-form-match-index="${state.matches.indexOf(m)}">${m.result==='Wygrana'?'W':'L'}</span>`).join('')}</div>`;
 }
 
 function openChampionDetails(champion){
@@ -302,7 +341,7 @@ function showTab(id){
   if(!state.player&&!['settings','compare'].includes(id))return;
   if(['settings','compare'].includes(id)){$('emptyState').classList.add('hidden');$('dashboard').classList.remove('hidden')}
   document.querySelector('.profile-strip').classList.toggle('hidden',!state.player);
-  document.querySelectorAll('.nav-item').forEach(b=>b.classList.toggle('active',b.dataset.tab===id));document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===id));if(id==='ranked')setTimeout(renderChart,50);if(id==='live'&&state.player){refreshLiveGame();refreshLocalLiveStats()}
+  document.querySelectorAll('.nav-item').forEach(b=>b.classList.toggle('active',b.dataset.tab===id));document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===id));if(id==='ranked')setTimeout(renderChart,50);if(id==='live'&&state.player){refreshLiveGame().then(refreshLiveInsights);refreshLocalLiveStats()}
 }
 function showError(message){$('errorBox').textContent=message;$('errorBox').classList.remove('hidden')}
 function requestNewApiKey(message){$('apiKey').value='';$('apiKey').type='password';$('toggleApiKey').textContent='Pokaż';$('apiKeyStatus').textContent='Poprzedni klucz wygasł lub został odrzucony. Wklej nowy klucz.';showTab('settings');showError(`${message} Wklej nowy klucz w Ustawieniach.`);setTimeout(()=>$('apiKey').focus(),80)}
@@ -311,6 +350,6 @@ function kda(match){return (match.kills+match.assists)/Math.max(1,match.deaths)}
 function title(value){const s=String(value||'').toLowerCase();return s.charAt(0).toUpperCase()+s.slice(1)}
 window.addEventListener('resize',()=>{if(state.player&&$('ranked').classList.contains('active'))renderChart()});
 setInterval(()=>{const clock=$('liveClock');if(clock)clock.textContent=formatClock(liveDuration())},1000);
-setInterval(()=>{if(state.player&&$('live').classList.contains('active'))refreshLiveGame()},60000);
+setInterval(async()=>{if(state.player&&$('live').classList.contains('active')){await refreshLiveGame();await refreshLiveInsights()}},60000);
 async function pollLocalLive(){if(state.player&&$('live').classList.contains('active'))await refreshLocalLiveStats();setTimeout(pollLocalLive,Math.max(3,Number(state.settings.liveRefresh)||5)*1000)}
 pollLocalLive();
