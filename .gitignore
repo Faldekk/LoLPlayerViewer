@@ -17,3 +17,9 @@ dist/
 .env.*
 config.json
 secrets.json
+.dev.vars
+.dev.vars.*
+cloudflare-worker/node_modules/
+cloudflare-worker/.review-types/
+cloudflare-worker/*.cpuprofile
+cloudflare-worker/worker-configuration.d.ts

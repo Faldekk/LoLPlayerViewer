@@ -1,0 +1,12 @@
+{
+  "name": "lol-player-viewer-proxy",
+  "private": true,
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.2",
+    "wrangler": "^4.118.0"
+  }
+}

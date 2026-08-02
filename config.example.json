@@ -1,3 +1,4 @@
 {
-  "riot_api_key": "RGAPI-WKLEJ-TUTAJ-SWOJ-KLUCZ"
+  "riot_api_key": "RGAPI-WKLEJ-TUTAJ-SWOJ-KLUCZ",
+  "riot_proxy_url": "https://lol-player-viewer-proxy.example.workers.dev"
 }

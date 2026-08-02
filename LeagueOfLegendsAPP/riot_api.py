@@ -19,16 +19,25 @@ class RiotApiError(Exception):
 
 
 class RiotApiClient:
-    def __init__(self, api_key: str, platform: str, regional: str) -> None:
+    def __init__(
+        self, api_key: str, platform: str, regional: str, proxy_url: str = ""
+    ) -> None:
         self.api_key = api_key
         self.platform = platform
         self.regional = regional
+        self.proxy_url = proxy_url.rstrip("/")
 
     def _get(self, host: str, path: str, allow_not_found: bool = False):
-        request = urllib.request.Request(
-            f"https://{host}.api.riotgames.com{path}",
-            headers={"X-Riot-Token": self.api_key, "User-Agent": "LoL-Player-Viewer/1.0"},
-        )
+        if self.api_key:
+            url = f"https://{host}.api.riotgames.com{path}"
+            headers = {"X-Riot-Token": self.api_key, "User-Agent": "LoL-Player-Viewer/1.0"}
+        elif self.proxy_url:
+            query = urllib.parse.urlencode({"host": host, "path": path})
+            url = f"{self.proxy_url}/v1/riot?{query}"
+            headers = {"User-Agent": "LoL-Player-Viewer/1.0"}
+        else:
+            raise RiotApiError("Brak domyślnego proxy i własnego klucza Riot API.")
+        request = urllib.request.Request(url, headers=headers)
         try:
             with urllib.request.urlopen(request, timeout=12) as response:
                 data = json.load(response)

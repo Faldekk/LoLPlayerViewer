@@ -1,7 +1,7 @@
 const $ = id => document.getElementById(id);
 const defaultSettings={theme:'dark',accent:'purple',region:'Europa Pn.-Wsch. (EUNE)',matches:'30',liveRefresh:'5',compact:false};
 const savedSettings=(()=>{try{return {...defaultSettings,...JSON.parse(localStorage.getItem('lpvSettings')||'{}')}}catch{return {...defaultSettings}}})();
-const state = { player: null, matches: [], version: null, favorites: [], region: '', chartPoints: [], championMap: {}, itemMap: {}, liveFetchedAt: 0, localLive: null, localFetchedAt: 0, liveInsights:{}, settings:savedSettings };
+const state = { player: null, matches: [], version: null, favorites: [], region: '', chartPoints: [], championMap: {}, itemMap: {}, liveFetchedAt: 0, localLive: null, localFetchedAt: 0, liveInsights:{}, defaultApiAvailable:false, settings:savedSettings };
 const queueGroups = { Ranked:[420,440], Normal:[400,430,490], ARAM:[450], Arena:[1700,1750] };
 const spellNames = {1:'SummonerBoost',3:'SummonerExhaust',4:'SummonerFlash',6:'SummonerHaste',7:'SummonerHeal',11:'SummonerSmite',12:'SummonerTeleport',14:'SummonerDot',21:'SummonerBarrier',32:'SummonerSnowball'};
 const esc = value => String(value ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
@@ -12,8 +12,9 @@ window.addEventListener('pywebviewready', async () => {
   const data = await window.pywebview.api.bootstrap();
   data.regions.forEach(region => {$('region').add(new Option(region,region));$('settingRegion').add(new Option(region,region))});
   state.favorites = data.favorites;
+  state.defaultApiAvailable = Boolean(data.default_api_available);
   if(data.api_key)$('apiKey').value=data.api_key;
-  $('apiKeyStatus').textContent=data.api_key_saved?'Zapamiętany, zweryfikowany klucz jest gotowy.':data.api_key?'Wczytano klucz z lokalnego config.json.':'Klucz zostanie zapisany lokalnie po udanym połączeniu z Riot API.';
+  $('apiKeyStatus').textContent=data.api_key_saved?'Używany jest Twój zapamiętany klucz.':data.api_key?'Wczytano Twój klucz z lokalnego config.json.':data.default_api_available?'Domyślne API jest aktywne. Własny klucz jest opcjonalny.':'Dodaj własny klucz Riot API.';
   applySettings();
   renderFavorites();
 });
@@ -36,18 +37,18 @@ $('favoritesSelect').addEventListener('change', () => {
   if (!Number.isInteger(index) || !state.favorites[index]) return;
   const favorite = state.favorites[index];
   $('riotId').value = favorite.riot_id; $('region').value = favorite.region;
-  if ($('apiKey').value.trim()) search();
+  if ($('apiKey').value.trim()||state.defaultApiAvailable) search();
 });
 
 async function search(){
-  if(!$('apiKey').value.trim()){showTab('settings');showError('Dodaj klucz Riot API w Ustawieniach.');return;}
+  if(!$('apiKey').value.trim()&&!state.defaultApiAvailable){showTab('settings');showError('Dodaj klucz Riot API w Ustawieniach.');return;}
   hideError(); $('loader').classList.remove('hidden'); $('searchBtn').disabled=true;
   try {
     const result = await window.pywebview.api.search($('riotId').value,$('region').value,$('apiKey').value,Number($('matchCount').value));
     if(!result.ok){if(result.api_key_invalid)requestNewApiKey(result.error);else showError(result.error);return;}
     state.player=result.player; state.matches=result.player.matches; state.version=result.ddragon_version; state.championMap=result.champion_map||{}; state.itemMap=result.item_map||{}; state.liveInsights={}; state.region=$('region').value; state.liveFetchedAt=Date.now();
     renderDashboard();
-    $('apiKeyStatus').textContent='Klucz zweryfikowany i zapisany lokalnie.';
+    $('apiKeyStatus').textContent=$('apiKey').value.trim()?'Twój klucz został zweryfikowany i zapisany lokalnie.':'Połączono przez domyślne API.';
   } catch(error){ showError(`Nie udało się uruchomić wyszukiwania: ${error}`); }
   finally { $('loader').classList.add('hidden'); $('searchBtn').disabled=false; }
 }
@@ -345,7 +346,7 @@ function showTab(id){
   document.querySelectorAll('.nav-item').forEach(b=>b.classList.toggle('active',b.dataset.tab===id));document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===id));if(id==='ranked')setTimeout(renderChart,50);if(id==='live'&&state.player){refreshLiveGame().then(refreshLiveInsights);refreshLocalLiveStats()}
 }
 function showError(message){$('errorBox').textContent=message;$('errorBox').classList.remove('hidden')}
-function requestNewApiKey(message){$('apiKey').value='';$('apiKey').type='password';$('toggleApiKey').textContent='Pokaż';$('apiKeyStatus').textContent='Poprzedni klucz wygasł lub został odrzucony. Wklej nowy klucz.';showTab('settings');showError(`${message} Wklej nowy klucz w Ustawieniach.`);setTimeout(()=>$('apiKey').focus(),80)}
+function requestNewApiKey(message){$('apiKey').value='';$('apiKey').type='password';$('toggleApiKey').textContent='Pokaż';$('apiKeyStatus').textContent='Domyślne API lub zapisany klucz nie działa. Możesz wkleić własny klucz.';showTab('settings');showError(`${message} Wklej własny klucz w Ustawieniach.`);setTimeout(()=>$('apiKey').focus(),80)}
 function hideError(){$('errorBox').classList.add('hidden')}
 function kda(match){return (match.kills+match.assists)/Math.max(1,match.deaths)}
 function title(value){const s=String(value||'').toLowerCase();return s.charAt(0).toUpperCase()+s.slice(1)}

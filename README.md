@@ -122,6 +122,17 @@ Po pierwszym udanym połączeniu klucz jest zapisywany lokalnie w `%APPDATA%\LoL
 
 ## Klucz Riot API
 
+Oficjalny build najpierw korzysta z domyślnego proxy Cloudflare Workers. Klucz
+Riot jest przechowywany jako zaszyfrowany sekret po stronie Cloudflare i nie
+znajduje się w repozytorium ani w pliku EXE. W Ustawieniach można opcjonalnie
+podać własny klucz; zostanie użyty bezpośrednio i ma pierwszeństwo przed proxy.
+Jeśli proxy jest niedostępne, osiągnie limit lub jego klucz zostanie odrzucony,
+aplikacja automatycznie poprosi o własny klucz.
+
+Kod proxy znajduje się w `cloudflare-worker/`. Dopuszcza wyłącznie endpointy
+Riot używane przez aplikację, ma limit 120 zapytań na minutę dla klienta i nie
+zwraca sekretu użytkownikom.
+
 1. Zaloguj się na [Riot Developer Portal](https://developer.riotgames.com/).
 2. Skopiuj klucz zaczynający się od `RGAPI-`.
 3. Uruchom LoL Player Viewer.

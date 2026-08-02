@@ -21,7 +21,7 @@ except ImportError:
     )
 
 from assets import DataDragonAssets
-from api_config import load_api_key
+from api_config import load_api_key, load_proxy_url
 from config import REGIONS
 from live_client import LiveClient
 from riot_api import RiotApiClient, RiotApiError
@@ -44,6 +44,7 @@ class AppBridge:
             "favorites": self.store.load(),
             "api_key": remembered_key or load_api_key(),
             "api_key_saved": bool(remembered_key),
+            "default_api_available": bool(load_proxy_url()),
         }
 
     def _resolve_api_key(self, supplied_key: str) -> str:
@@ -56,33 +57,40 @@ class AppBridge:
 
     def _api_error(self, error: RiotApiError, attempted_key: str) -> dict:
         invalid = error.status_code in (401, 403)
+        proxy_unavailable = not attempted_key and error.status_code in (401, 403, 429, 503)
         if invalid and self.key_store.load() == attempted_key:
             try:
                 self.key_store.clear()
             except OSError:
                 pass
-        return {"ok": False, "error": str(error), "api_key_invalid": invalid}
+        return {
+            "ok": False,
+            "error": str(error),
+            "api_key_invalid": invalid or proxy_unavailable,
+        }
 
     def search(
         self, riot_id: str, region_name: str, api_key: str, match_count: int = 30
     ) -> dict:
         riot_id = riot_id.strip()
         api_key = self._resolve_api_key(api_key)
+        proxy_url = load_proxy_url()
         if "#" not in riot_id:
             return {"ok": False, "error": "Wpisz Riot ID w formacie Nazwa#TAG."}
         if region_name not in REGIONS:
             return {"ok": False, "error": "Wybierz prawidłowy region."}
-        if not api_key:
+        if not api_key and not proxy_url:
             return {"ok": False, "error": "Wklej aktualny klucz Riot API."}
         game_name, tag_line = (part.strip() for part in riot_id.rsplit("#", 1))
         if not game_name or not tag_line:
             return {"ok": False, "error": "Nazwa i TAG nie mogą być puste."}
         platform, regional = REGIONS[region_name]
         try:
-            client = RiotApiClient(api_key, platform, regional)
+            client = RiotApiClient(api_key, platform, regional, proxy_url)
             player = client.load_player(game_name, tag_line, int(match_count))
             try:
-                self.key_store.save(api_key)
+                if api_key:
+                    self.key_store.save(api_key)
             except OSError:
                 pass
             self.live_client, self.live_puuid = client, player.puuid
@@ -159,14 +167,15 @@ class AppBridge:
         self, riot_id: str, region_name: str, api_key: str, match_count: int = 20
     ) -> dict:
         riot_id, api_key = riot_id.strip(), self._resolve_api_key(api_key)
+        proxy_url = load_proxy_url()
         if "#" not in riot_id:
             return {"ok": False, "error": "Wpisz drugie Riot ID w formacie Nazwa#TAG."}
-        if region_name not in REGIONS or not api_key:
+        if region_name not in REGIONS or (not api_key and not proxy_url):
             return {"ok": False, "error": "Sprawdź region i klucz Riot API."}
         game_name, tag_line = (part.strip() for part in riot_id.rsplit("#", 1))
         platform, regional = REGIONS[region_name]
         try:
-            player = RiotApiClient(api_key, platform, regional).load_player(
+            player = RiotApiClient(api_key, platform, regional, proxy_url).load_player(
                 game_name, tag_line, min(30, max(10, int(match_count))),
                 include_live=False,
             )
