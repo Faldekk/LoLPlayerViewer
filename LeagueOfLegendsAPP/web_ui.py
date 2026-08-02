@@ -132,7 +132,7 @@ class AppBridge:
                     insight = cached[1]
                 else:
                     insight = self.live_client.load_live_player_insight(
-                        puuid, champion_id, 5
+                        puuid, champion_id, 4
                     )
                     self.live_insight_cache[key] = (now + 300, insight)
                 insights.append(insight)

@@ -157,13 +157,20 @@ class RiotApiClient:
         return ranks if isinstance(ranks, list) else []
 
     def load_live_player_insight(
-        self, puuid: str, champion_id: int, match_count: int = 5
+        self, puuid: str, champion_id: int, match_count: int = 4
     ) -> dict:
         """Analizuje krótką formę uczestnika aktywnego meczu."""
+        mastery = self._get(
+            self.platform,
+            "/lol/champion-mastery/v4/champion-masteries/by-puuid/"
+            f"{self._quote(puuid)}/by-champion/{int(champion_id)}",
+            allow_not_found=True,
+        )
+        mastery = mastery if isinstance(mastery, dict) else {}
         match_ids = self._get(
             self.regional,
             f"/lol/match/v5/matches/by-puuid/{self._quote(puuid)}/ids"
-            f"?start=0&count={max(1, min(5, int(match_count)))}",
+            f"?start=0&count={max(1, min(4, int(match_count)))}",
         )
         results: list[bool] = []
         champion_games = 0
@@ -196,6 +203,8 @@ class RiotApiClient:
             "streak_count": streak_count,
             "champion_games": champion_games,
             "sample_size": len(results),
+            "mastery_level": int(mastery.get("championLevel", 0) or 0),
+            "mastery_points": int(mastery.get("championPoints", 0) or 0),
         }
 
     @staticmethod

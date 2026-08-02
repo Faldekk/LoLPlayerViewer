@@ -86,7 +86,8 @@ function renderLocalLiveStats(){
 function renderLiveInsight(insight){
   if(!insight)return '<small class="live-insight loading">Analizowanie ostatnich gier…</small>';
   const result=insight.streak_result,streak=result==='—'?'Brak historii':`${insight.streak_count}${result}`;
-  return `<small class="live-insight"><b class="${result==='W'?'streak-win':result==='L'?'streak-loss':''}">${streak}</b><span>${insight.champion_games}/${insight.sample_size} gier tym championem</span></small>`;
+  const mastery=insight.mastery_level?`M${insight.mastery_level} · ${number(insight.mastery_points)} pkt`:'Brak mastery';
+  return `<small class="live-insight"><b class="${result==='W'?'streak-win':result==='L'?'streak-loss':''}">${streak}</b><span>${mastery}</span><span>${insight.champion_games}/${insight.sample_size} ostatnich gier</span></small>`;
 }
 
 function liveInsightByRiotId(riotId){
