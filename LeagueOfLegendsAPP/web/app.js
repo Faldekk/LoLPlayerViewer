@@ -23,6 +23,17 @@ $('searchBtn').addEventListener('click', search);
 $('riotId').addEventListener('keydown', event => { if (event.key === 'Enter') search(); });
 $('modalClose').addEventListener('click', () => $('modal').classList.add('hidden'));
 $('modal').addEventListener('click', event => { if (event.target === $('modal')) $('modal').classList.add('hidden'); });
+$('modalContent').addEventListener('click', event => {
+  const participant=event.target.closest('[data-player-riot-id]');
+  if(participant)openParticipantProfile(participant.dataset.playerRiotId);
+});
+$('modalContent').addEventListener('keydown', event => {
+  const participant=event.target.closest('[data-player-riot-id]');
+  if(participant&&(event.key==='Enter'||event.key===' ')){
+    event.preventDefault();
+    openParticipantProfile(participant.dataset.playerRiotId);
+  }
+});
 $('favoriteBtn').addEventListener('click', toggleFavorite);
 $('refreshLiveBtn').addEventListener('click', async()=>{await refreshLiveGame();await refreshLocalLiveStats();await refreshLiveInsights()});
 $('chartMetric').addEventListener('change',renderChart);
@@ -278,13 +289,54 @@ function openChampionDetails(champion){
 
 async function openDetails(match){
   const teams=[...new Set(match.participants.map(p=>p.team_id))].slice(0,2);
-  $('modalContent').innerHTML=`<div class="modal-title"><div class="eyebrow">${esc(match.result.toUpperCase())}</div><h2>${esc(match.champion)} · ${match.kills} / ${match.deaths} / ${match.assists}</h2><p>${esc(match.queue)} · ${esc(match.duration)} · ${esc(match.date)}</p></div><div class="teams">${teams.map((id,i)=>{const players=match.participants.filter(p=>p.team_id===id),won=players[0]?.win;return `<section class="team"><h4 style="color:${won?'#35d6a2':'#ff6382'}">DRUŻYNA ${i+1} · ${won?'ZWYCIĘSTWO':'PORAŻKA'}</h4>${players.map(p=>`<div class="participant"><img src="${asset('champion',p.champion)}"><div><strong>${esc(p.riot_id)}</strong><small>${esc(p.champion)} · ${p.kills}/${p.deaths}/${p.assists} · ${p.cs} CS · ${number(p.damage)} DMG</small><span class="participant-rank" data-rank-puuid="${esc(p.puuid||'')}">${p.puuid?'Pobieranie aktualnej rangi…':'Ranga niedostępna'}</span></div><div class="items">${p.items.map(id=>`<img src="${asset('item',id)}" data-item-id="${id}">`).join('')}</div></div>`).join('')}</section>`}).join('')}</div>`;
+  const premades=detectPremades(match);
+  $('modalContent').innerHTML=`<div class="modal-title"><div class="eyebrow">${esc(match.result.toUpperCase())}</div><h2>${esc(match.champion)} · ${match.kills} / ${match.deaths} / ${match.assists}</h2><p>${esc(match.queue)} · ${esc(match.duration)} · ${esc(match.date)}</p><small class="premade-explanation">Każdy gracz ma kolorowe obramowanie. Tylko powtarzający się kolor w tej samej drużynie oznacza możliwe premade — jest to estymacja.</small></div><div class="teams">${teams.map((id,i)=>{const players=match.participants.filter(p=>p.team_id===id),won=players[0]?.win;return `<section class="team"><h4 style="color:${won?'#35d6a2':'#ff6382'}">DRUŻYNA ${i+1} · ${won?'ZWYCIĘSTWO':'PORAŻKA'}</h4>${players.map(p=>{const canOpen=String(p.riot_id||'').includes('#'),premade=premades.get(p.puuid),colorIndex=premade?premade.group:4+match.participants.indexOf(p),iconTitle=premade?`Możliwe premade z: ${premade.withNames.join(', ')} · ${premade.games} wspólne gry`:'Brak wykrytej grupy premade';return `<div class="participant ${canOpen?'clickable':''}" ${canOpen?`data-player-riot-id="${esc(p.riot_id)}" role="button" tabindex="0" title="Otwórz profil ${esc(p.riot_id)}"`:''}><img class="player-color-icon player-color-${colorIndex}" src="${asset('champion',p.champion)}" title="${esc(iconTitle)}"><div><strong>${esc(p.riot_id)}</strong>${canOpen?'<span class="open-profile-hint">Zobacz profil →</span>':''}<small>${esc(p.champion)} · ${p.kills}/${p.deaths}/${p.assists} · ${p.cs} CS · ${number(p.damage)} DMG</small><span class="participant-rank" data-rank-puuid="${esc(p.puuid||'')}">${p.puuid?'Pobieranie aktualnej rangi…':'Ranga niedostępna'}</span></div><div class="items">${p.items.map(id=>`<img src="${asset('item',id)}" data-item-id="${id}">`).join('')}</div></div>`}).join('')}</section>`}).join('')}</div>`;
   $('modal').classList.remove('hidden');
   const puuids=match.participants.map(p=>p.puuid).filter(Boolean);
   if(!puuids.length)return;
   const result=await window.pywebview.api.participant_ranks(puuids);
   if(!result.ok){document.querySelectorAll('.participant-rank').forEach(node=>node.textContent='Nie udało się pobrać rangi');if(result.api_key_invalid)requestNewApiKey(result.error);return;}
   document.querySelectorAll('[data-rank-puuid]').forEach(node=>{node.textContent=formatRanks(result.ranks[node.dataset.rankPuuid]||[])});
+}
+
+function detectPremades(match){
+  const result=new Map(),parent=new Map(),edgeCounts=new Map();
+  const find=id=>{if(parent.get(id)!==id)parent.set(id,find(parent.get(id)));return parent.get(id)};
+  const join=(a,b)=>{const ra=find(a),rb=find(b);if(ra!==rb)parent.set(rb,ra)};
+  match.participants.filter(p=>p.puuid).forEach(p=>parent.set(p.puuid,p.puuid));
+  for(const teamId of new Set(match.participants.map(p=>p.team_id))){
+    const players=match.participants.filter(p=>p.team_id===teamId&&p.puuid);
+    for(let a=0;a<players.length;a++)for(let b=a+1;b<players.length;b++){
+      const first=players[a],second=players[b];
+      const games=state.matches.filter(history=>{
+        const one=history.participants?.find(p=>p.puuid===first.puuid);
+        const two=history.participants?.find(p=>p.puuid===second.puuid);
+        return one&&two&&one.team_id===two.team_id;
+      }).length;
+      if(games>=2){edgeCounts.set(`${first.puuid}|${second.puuid}`,games);join(first.puuid,second.puuid)}
+    }
+  }
+  const roots=[...new Set([...parent].filter(([id])=>[...edgeCounts.keys()].some(key=>key.includes(id))).map(([id])=>find(id)))];
+  roots.forEach((root,index)=>{
+    const members=match.participants.filter(p=>p.puuid&&find(p.puuid)===root);
+    if(members.length<2)return;
+    for(const player of members){
+      const partners=members.filter(other=>other.puuid!==player.puuid);
+      const games=Math.max(...partners.map(other=>edgeCounts.get(`${player.puuid}|${other.puuid}`)||edgeCounts.get(`${other.puuid}|${player.puuid}`)||0));
+      result.set(player.puuid,{group:index%4,games,withNames:partners.map(p=>p.riot_id)});
+    }
+  });
+  return result;
+}
+
+function openParticipantProfile(riotId){
+  riotId=String(riotId||'').trim();
+  if(!riotId.includes('#'))return;
+  $('modal').classList.add('hidden');
+  $('riotId').value=riotId;
+  $('region').value=state.region||state.settings.region;
+  window.scrollTo({top:0,behavior:'smooth'});
+  search();
 }
 
 function formatRanks(ranks){
